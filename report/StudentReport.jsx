@@ -1759,8 +1759,6 @@ export default function HealthOverviewReport() {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [studentFilter, setStudentFilter] = useState("all");
   const [studentId, setStudentId] = useState("");
-  // PDF export — ref points at the report body, html2canvas-pro captures it
-  // and jsPDF paginates the render into a downloadable A4 document.
   const reportRef = useRef(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
@@ -1775,12 +1773,6 @@ export default function HealthOverviewReport() {
     [assignedEvents, schoolName],
   );
 
-  // Reverse lookup for the report: general screening knows a student's camp
-  // because its roster comes FROM the camp (getStudentByEvent). Here students
-  // are listed across all camps, so fetch every assigned camp's roster and
-  // index it by each student identifier. Any selected student then resolves
-  // to its camp + school even when the school filter is still "all" — the
-  // /students/filter rows don't carry camp/school fields.
   const assignedEventIds = useMemo(
     () =>
       (Array.isArray(assignedEvents) ? assignedEvents : [])

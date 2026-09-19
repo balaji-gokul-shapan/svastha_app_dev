@@ -575,19 +575,29 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
   const [dentalFindingEntries, setDentalFindingEntries] = useState([]);
   const [dentalCodingEntries, setDentalCodingEntries] = useState([]);
   const [isCodingPopupOpen, setIsCodingPopupOpen] = useState(false);
+  const [isCodingListOpen, setIsCodingListOpen] = useState(false);
+  
+  const [isSavedFindingDetailOpen, setIsSavedFindingDetailOpen] =
+    useState(false);
+  const [selectedSavedFinding, setSelectedSavedFinding] = useState(null);
+  const [activeToothDetailsTab, setActiveToothDetailsTab] =
+    useState("tooth-details");
+
+  const handleToothDetailsTabChange = (tab) => {
+    setActiveToothDetailsTab(tab);
+
+    // if (tab === "dental-info") {
+    //   setIsCodingListOpen(true);
+    // }
+  };
   const [popupCodingValue, setPopupCodingValue] = useState("");
   const [popupConditionValue, setPopupConditionValue] = useState("");
   const [popupTreatmentValue, setPopupTreatmentValue] = useState("");
   const [popupSurfaceValue, setPopupSurfaceValue] = useState("");
-  // Tracks the last successfully saved student (create-only flow): once a
-  // student is saved, further save clicks for the SAME student are blocked;
-  // selecting a different student changes the key and unblocks saving.
   const savedStudentKeyRef = useRef(null);
-  // State mirror of savedStudentKeyRef so the Save button can disable itself
-  // after the current student is saved (refs don't trigger re-renders).
   const [savedStudentKey, setSavedStudentKey] = useState(null);
 
-  // When set, the popup is editing an existing entry (chip click); null = add mode.
+
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [codingSearchTerm, setCodingSearchTerm] = useState("");
   const [codingSearchOptions, setCodingSearchOptions] = useState(null);
@@ -1209,7 +1219,7 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
     const activeId = studentFilter !== "all" ? studentFilter : studentId;
     if (!activeId) return null;
 
-    // Primary lookup in studentsArray (from API response)
+    //studentsArray (from API response)
     if (Array.isArray(studentsArray) && studentsArray.length > 0) {
       const match = studentsArray.find(
         (student) =>
@@ -1219,8 +1229,6 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
       if (match) return match;
     }
 
-    // Fallback: look in the Redux slice roster (handles pagination where the
-    // student may be on a later page not yet in studentsArray)
     if (Array.isArray(eventRoster) && eventRoster.length > 0) {
       const match = eventRoster.find(
         (student) =>
@@ -1270,9 +1278,40 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
       return null;
     }
 
-    // The API endpoint is already scoped to /dental-test/student/{studentId}.
     return dentalScreeningData[0] ?? null;
   }, [dentalScreeningData, studentId]);
+
+  const savedDentalCodingEntries = useMemo(() => {
+    const findings = getSelectedStudentScreeningData?.dental_findings;
+
+    if (!Array.isArray(findings)) {
+      return [];
+    }
+
+    return findings.map((finding) => ({
+      // The `saved-` prefix keeps these ids from colliding with the
+      // Date.now() ids of locally added entries.
+      id: `saved-${finding.id}`,
+      saved: true,
+      coding: String(finding.code ?? ""),
+      codingLabel: String(finding.code ?? ""),
+      dentalCodingId: finding.coding_id ?? "",
+      conditionLabel: String(finding.dental_condition?.name ?? ""),
+      conditionSeverity: finding.dental_condition?.severity ?? "",
+      conditionRiskScore: finding.dental_condition?.risk_score ?? "",
+      conditionDescription: finding.dental_condition?.description ?? "",
+      dentalConditionId:
+        finding.dental_condition_id ?? finding.dental_condition?.id ?? "",
+      tooth: finding.tooth_number ?? null,
+      surface: "",
+      risk: finding.dental_condition?.risk_score ?? "",
+      treatment: "",
+      dentition:
+        String(finding.tooth_type ?? "").toLowerCase() === "primary"
+          ? "primary"
+          : "adult",
+    }));
+  }, [getSelectedStudentScreeningData]);
 
   useEffect(() => {
     // After a save we reset the form; skip re-applying the just-saved record
@@ -2036,6 +2075,13 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
     setIsCodingPopupOpen(true);
   };
 
+  // Saved chip click: open a read-only detail popup showing the full saved
+  // finding (coding, condition, severity, risk, description, tooth).
+  const handleViewSavedFinding = (entry) => {
+    setSelectedSavedFinding(entry);
+    setIsSavedFindingDetailOpen(true);
+  };
+
   // The entry currently being edited (null in add mode) — used by the dialog
   // title/description to show the right tooth.
   const editingEntry =
@@ -2523,7 +2569,11 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
                     />
                   </div>
 
-                  <Tabs defaultValue="tooth-details" className="w-full">
+                  <Tabs
+                    value={activeToothDetailsTab}
+                    onValueChange={handleToothDetailsTabChange}
+                    className="w-full"
+                  >
                     <TabsList className="grid w-full grid-cols-2 sm:w-1/2">
                       <TabsTrigger
                         value="tooth-details"
@@ -2543,7 +2593,10 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
                       >
                         <IcdIcon className="size-4 shrink-0" />
                         <span className="min-w-0 truncate">
-                          Diagnosis & ICD Codes
+                          <span className="">
+                          Diagnosis & ICD Codes {" "}{" "}
+                          <span className="rounded-full aspect-square p-2  text-primary bg-primary/20">{dentalCodingEntries?.length ||  savedDentalCodingEntries?.length}</span>
+                          </span>
                         </span>
                       </TabsTrigger>
                     </TabsList>
@@ -2897,8 +2950,41 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
                                   </DialogContent>
                                 </Dialog>
                               </div>
-                              {dentalCodingEntries.length > 0 ? (
+                              {savedDentalCodingEntries.length > 0 ||
+                              dentalCodingEntries.length > 0 ? (
                                 <div className="mt-3 flex flex-wrap gap-2">
+                                  {/* Saved findings retrieved with the
+                                      screening record (dental_findings) —
+                                      click to view full detail. */}
+                                  {savedDentalCodingEntries.map((entry) => (
+                                    <span
+                                      key={entry.id}
+                                      title={
+                                        entry.conditionDescription
+                                          ? `${entry.conditionLabel}: ${entry.conditionDescription}`
+                                          : undefined
+                                      }
+                                      onClick={() =>
+                                        handleViewSavedFinding(entry)
+                                      }
+                                      className="inline-flex cursor-pointer items-end gap-1.5 rounded-full border border-primary/30 bg-primary/5 py-1 pl-2.5 pr-1.5 text-xs hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                                    >
+                                      <span className="font-medium text-foreground">
+                                        {entry.codingLabel}
+                                      </span>
+                                      <span className="text-muted-foreground">
+                                        - {entry.conditionLabel}
+                                      </span>
+                                      {entry.tooth != null ? (
+                                        <span className="rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                          Tooth {entry.tooth}
+                                        </span>
+                                      ) : null}
+                                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                                        Saved
+                                      </span>
+                                    </span>
+                                  ))}
                                   {dentalCodingEntries.map((entry) => (
                                     <span
                                       key={entry.id}
@@ -2980,10 +3066,238 @@ console.log(getDentalCodingOptions,"getDentalCodingOptions");
                       </FramerCard>
                     </TabsContent>
                   </Tabs>
-                </div>
-                {/* </FramerCard> */}
 
-                {/* ---------------- Oral hygiene ---------------- */}
+                
+                  <Dialog
+                    open={isCodingListOpen}
+                    onOpenChange={setIsCodingListOpen}
+                  >
+                    <DialogContent className="shadow-2xs sm:max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Coding entries</DialogTitle>
+                        <DialogDescription>
+                          All dental coding entries recorded for this student.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      {dentalCodingEntries.length > 0 ? (
+                        <div className="max-h-80 overflow-auto">
+                          <table className="w-full text-left text-sm">
+                            <thead>
+                              <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                                <th className="py-2 pr-3 font-medium">Coding</th>
+                                <th className="py-2 pr-3 font-medium">
+                                  Condition
+                                </th>
+                                <th className="py-2 pr-3 font-medium">Tooth</th>
+                                <th className="py-2 pr-3 font-medium">
+                                  Severity
+                                </th>
+                                <th className="py-2 pr-3 font-medium">Risk</th>
+                                <th className="py-2 pr-3 font-medium">
+                                  Treatment
+                                </th>
+                                <th className="py-2 font-medium">Surface</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dentalCodingEntries.map((entry) => (
+                                <tr
+                                  key={entry.id}
+                                  className="border-b border-border/60 last:border-0"
+                                >
+                                  <td className="py-2 pr-3 font-medium text-foreground">
+                                    {entry.codingLabel || "—"}
+                                  </td>
+                                  <td className="py-2 pr-3 text-muted-foreground">
+                                    {entry.conditionLabel || "—"}
+                                  </td>
+                                  <td className="py-2 pr-3 text-muted-foreground">
+                                    {entry.tooth ?? "—"}
+                                  </td>
+                                  <td className="py-2 pr-3 text-muted-foreground">
+                                    {entry.conditionSeverity || "—"}
+                                  </td>
+                                  <td className="py-2 pr-3 text-muted-foreground">
+                                    {entry.conditionRiskScore ||
+                                      entry?.risk ||
+                                      "—"}
+                                  </td>
+                                  <td className="py-2 pr-3 text-muted-foreground">
+                                    {entry.treatment || "—"}
+                                  </td>
+                                  <td className="py-2 text-muted-foreground">
+                                    {entry.surface || "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="py-4 text-sm text-muted-foreground">
+                          No coding entries yet. Use &quot;Add coding&quot; to
+                          record findings.
+                        </p>
+                      )}
+
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          onClick={() => setIsCodingListOpen(false)}
+                        >
+                          Close
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                    {/* Saved finding detail popup — read-only, opened when a saved
+                        chip (from dental_findings) is clicked. */}
+                    <Dialog
+                      open={isSavedFindingDetailOpen}
+                      onOpenChange={(open) => {
+                        setIsSavedFindingDetailOpen(open);
+                        if (!open) setSelectedSavedFinding(null);
+                      }}
+                    >
+                      <DialogContent className="shadow-2xs sm:max-w-2/5">
+                        {selectedSavedFinding ? (
+                          <>
+                            <DialogHeader>
+                              <DialogTitle>
+                                Dental coding detail
+                              </DialogTitle>
+                              <DialogDescription>
+                                Saved finding for tooth{" "}
+                                <span className="font-medium text-foreground">
+                                  {selectedSavedFinding.tooth ?? "—"}
+                                </span>{" "}
+                                (
+                                {selectedSavedFinding.dentition === "primary"
+                                  ? "primary"
+                                  : "permanent"}
+                              ).
+                              </DialogDescription>
+                            </DialogHeader>
+
+                            <div className="space-y-4">
+                              <dl className="grid gap-3 sm:grid-cols-2">
+                                <div className="min-w-0">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    Coding
+                                  </dt>
+                                  <dd className="text-sm font-medium text-foreground">
+                                    {selectedSavedFinding.codingLabel || "—"}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    Tooth
+                                  </dt>
+                                  <dd className="text-sm font-medium text-foreground">
+                                    Tooth{" "}
+                                    {selectedSavedFinding.tooth ||
+                                      "—"}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    Condition
+                                  </dt>
+                                  <dd className="text-sm font-medium text-foreground">
+                                    {selectedSavedFinding.conditionLabel ||
+                                      "—"}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    ICD code
+                                  </dt>
+                                  <dd className="text-sm text-muted-foreground">
+                                    {selectedSavedFinding.dentalCodingId ||
+                                      "—"}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    Severity
+                                  </dt>
+                                  <dd className="text-sm text-foreground">
+                                    {selectedSavedFinding.conditionSeverity ||
+                                      "—"}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    Risk score
+                                  </dt>
+                                  <dd className="text-sm text-foreground">
+                                    {selectedSavedFinding.conditionRiskScore ||
+                                      selectedSavedFinding.risk ||
+                                      "—"}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0 sm:col-span-2">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    Description
+                                  </dt>
+                                  <dd className="text-sm text-muted-foreground">
+                                    {selectedSavedFinding.conditionDescription ||
+                                      "—"}
+                                  </dd>
+                                </div>
+
+                                <div className="min-w-0 sm:col-span-2">
+                                  <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                    Surface
+                                  </dt>
+                                  <dd className="text-sm text-muted-foreground">
+                                    {selectedSavedFinding.surface ||
+                                      selectedSavedFinding.tooth_number ||
+                                      "—"}
+                                  </dd>
+                                </div>
+                              </dl>
+
+                              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                                <dt className="mb-1.5 block text-xs text-muted-foreground">
+                                  Finding id
+                                </dt>
+                                <dd className="text-sm text-muted-foreground">
+                                  {selectedSavedFinding.id}
+                                </dd>
+                              </div>
+                            </div>
+
+                            <DialogFooter>
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  setIsSavedFindingDetailOpen(false)
+                                }
+                              >
+                                Close
+                              </Button>
+                            </DialogFooter>
+                          </>
+                        ) : (
+                          <p className="py-4 text-sm text-muted-foreground">
+                            No finding selected.
+                          </p>
+                        )}
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  {/* </FramerCard> */}
+
+                  {/* ---------------- Oral hygiene ---------------- */}
                 {/* <FramerCard> */}
                 <OralHygenic
                   oralHygiene={oralHygiene}

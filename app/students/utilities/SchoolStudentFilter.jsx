@@ -157,6 +157,8 @@ console.log(formData,"eeeee");
     const allItems = Array.isArray(getAllFilterStudent?.items)
       ? getAllFilterStudent.items
       : [];
+      console.log(getAllFilterStudent,"getAllFilterStudent");
+      
     const years = new Set();
     allItems.forEach((student) => {
       const year = String(

@@ -5,7 +5,14 @@ import { getStudentByEvent } from "@/lib/features/getEventAssignSlice";
 import { fetchWithAuth } from "@/lib/auth-utils";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { findSelectedCamp } from "@/lib/useAssignedEvents";
-import { getCampId, getCampName, getCampSchoolName } from "@/lib/camp-utils";
+import {
+  getCampDate,
+  getCampDisplayLabel,
+  getCampId,
+  getCampName,
+  getCampPrimaryDoctorId,
+  getCampSchoolName,
+} from "@/lib/camp-utils";
 import { useQuery } from "@tanstack/react-query";
 import React, {
   useCallback,
@@ -189,7 +196,9 @@ const StudentFilter = ({
 
     campList.forEach((camp) => {
       const id = getCampId(camp);
-      const label = getCampName(camp);
+      // Include the camp date — several camps can share the same name, so the
+      // dropdown would otherwise show indistinguishable duplicates.
+      const label = getCampDisplayLabel(camp);
 
       if (id && label) {
         unique.set(id, {
@@ -218,6 +227,7 @@ const StudentFilter = ({
 
   const selectedCamp = useMemo(() => {
     const campList = Array.isArray(assignedEvents) ? assignedEvents : [];
+    
 
     const fallback = findSelectedCamp(assignedEvents, schoolName) ?? {
       id: null,
@@ -239,6 +249,8 @@ const StudentFilter = ({
           id: getCampId(pickedCamp) || null,
           name: getCampName(pickedCamp) || "all",
           schoolName: getCampSchoolName(pickedCamp) || fallback.schoolName,
+          
+          date: getCampDate(pickedCamp) || fallback.date || null,
         };
       }
     }
@@ -246,25 +258,41 @@ const StudentFilter = ({
     return fallback;
   }, [assignedEvents, schoolName, activeCampSelection]);
 
-  // selectedCamp is a useMemo, so it's a new object identity whenever its
-  // inputs change. Keying the effect on a value signature avoids both the
-  // render-time setState (illegal) and an effect loop from object identity.
+
+  const activeCampEvent = useMemo(() => {
+    const campList = Array.isArray(assignedEvents) ? assignedEvents : [];
+    const id = String(selectedCamp?.id ?? "").trim();
+
+    if (!id || id === "all") return null;
+
+    // getCampId() tolerates `id` / `Id` instead of assuming a casing.
+    return campList.find((camp) => getCampId(camp) === id) ?? null;
+  }, [assignedEvents, selectedCamp?.id]);
+
+  console.log(activeCampEvent?.primary_doctor,"activeCampEvent");
+  
+
+  const primaryDoctorId = getCampPrimaryDoctorId(activeCampEvent) ?? "";
+  
+  console.log(primaryDoctorId,"primaryDoctorId");
+  
+
   const selectedCampSignature = selectedCamp
-    ? `${selectedCamp.id ?? ""}|${selectedCamp.name ?? ""}|${selectedCamp.schoolName ?? ""}`
+    ? `${selectedCamp.id ?? ""}|${selectedCamp.name ?? ""}|${selectedCamp.schoolName ?? ""}|${selectedCamp.date ?? ""}`
     : "";
 
   useEffect(() => {
-    setSelectedCampDetails(selectedCamp);
-    // Only re-notify the parent when the resolved camp actually changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCampSignature]);
+    setSelectedCampDetails(
+      selectedCamp ? { ...selectedCamp, primaryDoctorId } : selectedCamp,
+    );
+
+  }, [selectedCampSignature, primaryDoctorId]);
 
   /* ------------------------------------------------------------------------ */
   /* Camp selection                                                           */
   /* ------------------------------------------------------------------------ */
 
-  // The select holds camp ids, so the active camp is mirrored into the
-  // parent-owned selection as an id string.
+
   const selectedCampId = useMemo(() => {
     const id = selectedCamp?.id;
 

@@ -18,18 +18,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useAppDispatch } from "@/lib/hooks";
 import { getRegisterSchool } from "@/lib/features/registerSchoolSlice";
 
-/**
- * Campus Details - Settings tab that shows the signed-in school's profile and
- * a picker over its assigned camps (health events), with a details card for
- * the selected camp.
- */
+
 const CampDetails = () => {
   const { authUser } = useAuthUser();
   const { assignedEvents, assignEventLoading, assignEventError } =
     useAssignedEvents();
 
-  // The school profile is fetched lazily when this tab is opened (not on the
-  // whole settings page mount) so the rest of settings stays instant.
   const dispatch = useAppDispatch();
   const schoolId = 3;
   const { data: schoolProfile, isLoading: schoolLoading } = useQuery({

@@ -5,6 +5,7 @@ import { cva } from "class-variance-authority";
 import { CalendarDays, MapPin, School } from "lucide-react";
 
 import { cn } from "../../lib/utils";
+import { formatCampDate } from "../../lib/camp-utils";
 import { Badge } from "./badge";
 
 /**
@@ -38,20 +39,8 @@ const campDetailsCardVariants = cva(
   },
 );
 
-function formatCampDate(value) {
-  if (!value) return null;
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return String(value);
-  }
-
-  return parsed.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+// formatCampDate lives in lib/camp-utils.js so the camp dropdowns and this card
+// format dates identically. Re-exported below for existing importers.
 
 function CampDetailsCard({
   camp,
