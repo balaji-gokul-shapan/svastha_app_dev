@@ -2,44 +2,66 @@
 
 import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { FullScreenLoader } from "@/components/ui/global-loader";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { clearAuthSession } from "@/lib/features/auth-slice";
 
 import { AppBreadcrumb } from "./app-breadcrumb";
 import { Navbar } from "./navbar";
 import { Sidebar } from "./sidebar";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 const CHROMELESS_ROUTES = ["/login", "/register"];
+
+const subscribeNoop = () => () => {};
 
 export function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
+  const dispatch = useDispatch();
   const isAuthenticated = useSelector(
     (state) => state.auth?.isAuthenticated === true,
   );
-  const [authChecked, setAuthChecked] = React.useState(false);
   const hideChrome = CHROMELESS_ROUTES.some((route) => pathname?.startsWith(route));
 
+  // "Are we on the client?" without a setState-in-effect: the server snapshot is
+  // false so the server render and the hydrating render agree on the loader,
+  // then React switches to the client snapshot and the real UI mounts.
+  const isClient = React.useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
+
   React.useEffect(() => {
-    if (hideChrome) {
-      setAuthChecked(true);
+    if (hideChrome || isAuthenticated) {
       return;
     }
 
-    if (!isAuthenticated) {
-      router.replace("/login");
-      return;
-    }
-
-    setAuthChecked(true);
-  }, [hideChrome, isAuthenticated, router]);
+    // proxy.js lets every request through while the `svastha-auth` COOKIE
+    // exists, and bounces /login back to "/" for as long as it does. The
+    // session itself (tokens, user) lives in sessionStorage, which is PER TAB —
+    // so a new tab, or cleared site data, leaves "cookie yes / session no".
+    // Clearing the cookie here is what stops that ping-ponging / -> /login -> /
+    // behind a blank page.
+    dispatch(clearAuthSession());
+    router.replace("/login");
+  }, [dispatch, hideChrome, isAuthenticated, router]);
 
   if (hideChrome) {
-    return <main className="min-h-screen">{children}</main>
+    return <main className="min-h-screen">{children}</main>;
   }
 
-  if (!authChecked) {
-    return <main className="min-h-screen" />;
+  if (!isClient || !isAuthenticated) {
+    // Never return a bare empty <main> here: the entire UI below is
+    // client-rendered, so a blank page used to be the failure mode for
+    // everything, with nothing on screen to explain why.
+    return (
+      <FullScreenLoader
+        label={isAuthenticated ? "Loading your dashboard..." : "Restoring your session..."}
+      />
+    );
   }
 
   return (

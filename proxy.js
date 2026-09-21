@@ -22,9 +22,7 @@ const AUTH_COOKIE_NAME = "svastha-auth";
 // Public pages: reachable without login. Add new ones here (e.g. "/about").
 const PUBLIC_PATHS = new Set(["/login", "/register"]);
 
-// Auth pages a signed-in user gets bounced off of (back to /dashboard).
-// NOTE: deliberately narrower than PUBLIC_PATHS so internal links like the
-// sidebar's "/register" keep working while a user is logged in.
+
 const AUTH_PAGES = new Set(["/login"]);
 
 const LOGIN_PATH = "/login";
@@ -34,11 +32,9 @@ export function proxy(request) {
   const { pathname, search } = request.nextUrl;
   const rawCookie = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const isAuthenticated = Boolean(rawCookie);
-  // The cookie holds the resolved role — a name ("school_sub_account") or a
-  // numeric user_type_id ("2"). isRoleAllowedForPath() resolves both.
+ 
   const role = rawCookie ? decodeURIComponent(rawCookie) : "";
 
-  // Already logged in? Keep users away from the auth pages.
   if (isAuthenticated && AUTH_PAGES.has(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = AUTHENTICATED_HOME_PATH;
@@ -74,9 +70,11 @@ export function proxy(request) {
 
 export const config = {
   matcher: [
-    // Skip API routes, static assets, and browser probes like Chrome DevTools'
+    // Skip API routes, all `_next/*` framework internals (static chunks, image
+    // optimization, the HMR websocket endpoint, dev-overlay fetches) and
+    // browser probes like Chrome DevTools'
     // /.well-known/appspecific/com.chrome.devtools.json (which is not a page —
     // redirecting it to /login just adds noise to the logs).
-    "/((?!api|_next/static|_next/image|favicon.ico|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|css|js)$).*)",
+    "/((?!api|_next|__nextjs|favicon.ico|\\.well-known|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|css|js)$).*)",
   ],
 };

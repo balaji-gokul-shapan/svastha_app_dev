@@ -5,6 +5,7 @@ import "./globals.css";
 import { Footer } from "./components/layout/footer";
 import { Providers } from "./providers";
 import { AppShell } from "./components/layout/app-shell";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,7 +52,9 @@ export default function RootLayout({ children }) {
     >
       <body className="min-h-full bg-background font-sf">
         <Providers>
-          <AppShell>{children}</AppShell>
+          <ErrorBoundary>
+            <AppShell>{children}</AppShell>
+          </ErrorBoundary>
           {/* <Footer /> */}
         </Providers>
       </body>
