@@ -523,13 +523,17 @@ export default function StudentOverviewCharts({ user }) {
 ============================================================ */
 
 function DashboardHeader({ user }) {
-  const NormaliseName =
-    user.emp_name.charAt(0).toUpperCase() + user.emp_name.slice(1);
+
+  const rawName =
+    user?.emp_name || user?.label || user?.full_name || user?.user_name || "";
+  const displayName = rawName
+    ? rawName.charAt(0).toUpperCase() + rawName.slice(1)
+    : "there";
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h1 className="text-xl font-bold tracking-tight md:text-2xl">
-          Welcome back, {NormaliseName}
+          Welcome back, {displayName}
         </h1>
 
         <p className="text-sm text-muted-foreground">

@@ -1,8 +1,8 @@
 // import { StudentOverviewCharts } from "./components/dashboard/student-overview-charts";
 // import { studentRecords } from "./students/student-data";
 
-import MasterDashboard from "./components/dashboard/page";
-import StudentOverviewCharts from "./components/dashboard/student-overview-charts";
+import MasterDashboard from "@/components/dashboard/MasterDashboard";
+import StudentOverviewCharts from "@/components/dashboard/student-overview-charts";
 
 export default function Home() {
   return (
