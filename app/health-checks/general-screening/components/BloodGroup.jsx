@@ -4,9 +4,15 @@ import { ToggleGroup } from "../utilities/toggleGroup";
 import { Syringe } from "lucide-react";
 import BloodDropOutlineIcon from "@iconify-react/healthicons/blood-drop-outline";
 
-const BloodGroup = ({ bloodGroup, handleBloodGroupChange, formErrors, bloodGroupToggleOptions, immunizationOptions, immunization, setImmunization }) => {
-
-
+const BloodGroup = ({
+  bloodGroup,
+  handleBloodGroupChange,
+  formErrors,
+  bloodGroupToggleOptions,
+  immunizationOptions,
+  immunization,
+  setImmunization,
+}) => {
   return (
     <FramerCard>
       <article className="space-y-4 rounded-xl border border-border bg-card p-4">

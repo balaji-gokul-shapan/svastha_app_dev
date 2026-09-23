@@ -634,17 +634,7 @@ const ReportPage = dynamic(() => import("./pages/Report"));
 // import ProfilePage from "./pages/ProfilePage";
 // import AppearancePage from "./pages/AppearancePage";
 
-/* =========================================================
-   PRIVILEGES → API PAYLOAD
-   The form holds privileges as the ClassSectionManager map
-   ({ "11": ["A", "B"], "12": ["A"] }) while the API expects a flat
-   "class-index" string ("11-1, 11-2, 12-3").
 
-   The field can also hold a plain string — an account loaded from the
-   API already carries flattened privileges — so every shape is
-   normalised here instead of crashing on `<string>.join(...)` or
-   `values.map(...)`.
-   ========================================================= */
 const buildPrivilegesPayload = (value) => {
   if (typeof value === "string") return value.trim();
   if (value == null) return "";
@@ -670,7 +660,7 @@ const buildPrivilegesPayload = (value) => {
 };
 
 
-const page = () => {
+const Page = () => {
   const [activeTab, setActiveTab] = useState("my-details");
   const [navQuery, setNavQuery] = useState("");
   const dispatch = useAppDispatch();
@@ -683,9 +673,6 @@ const page = () => {
   const account = useAppSelector(selectUserAccount);
   console.log(account, "accountee");
 
-  // user_type_id 2 = "school" — auto-open the School Details tab once per
-  // session so the logo-empty popup can appear after login (SchoolDetails
-  // only mounts when this tab is active).
   React.useEffect(() => {
     const userTypeId = Number(
       account?.user_type_id ?? account?.userTypeId ?? "",
@@ -694,13 +681,12 @@ const page = () => {
     const storageKey = "svastha-settings-auto-open";
     if (window.sessionStorage.getItem(storageKey) === "1") return;
     window.sessionStorage.setItem(storageKey, "1");
+    // One-time session side effect — intentionally flips the active tab.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveTab("SchoolDetails");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account]);
 
-  // Branch data for a school_sub_account. The backend 401s them on
-  // /schools/branch/all, so their branch can only come from the login
-  // payload — checked on both the account object and the staff/user object.
+
   const subAccountBranch = React.useMemo(() => {
     const id = String(
       account?.branch_id ??
@@ -823,22 +809,66 @@ const page = () => {
       })
       .filter(Boolean);
   }, []);
+
+  
   const profileInputRef = useRef(null);
 
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState("");
+  const profileName =
+    authUser?.emp_name ??
+    authUser?.full_name ??
+    authUser?.name ??
+    account?.name ??
+    "";
+  const profileUsername =
+    authUser?.user_name ??
+    authUser?.username ??
+    account?.user_name ??
+    "";
+
+    console.log(authUser,"authUsersssssssssss");
+    
 
   const [settingsFormData, setSettingsFormData] = useState({
-    name: account?.name,
-    username: account?.user_name,
-    password: "",
+    name: profileName,
+    username: profileUsername,
+    password: "********",
     signature: "",
+    phoneNumber: authUser?.phone_number ?? account?.phone_number ?? "7299431420",
   });
+
+
+  const touchedFieldsRef = React.useRef(new Set());
+
+
+  React.useEffect(() => {
+    setSettingsFormData((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      if (!touchedFieldsRef.current.has("name") && next.name !== profileName) {
+        next.name = profileName;
+        changed = true;
+      }
+
+      if (
+        !touchedFieldsRef.current.has("username") &&
+        next.username !== profileUsername
+      ) {
+        next.username = profileUsername;
+        changed = true;
+      }
+
+      return changed ? next : prev;
+    });
+  }, [profileName, profileUsername]);
 
 console.log(settingsFormData,"settingsFormData");
 
 
   const handleSettingsChange = (field, value) => {
+    touchedFieldsRef.current.add(field);
     setSettingsFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -866,8 +896,12 @@ console.log(settingsFormData,"settingsFormData");
 
   const visibleNav = React.useMemo(
     () => getVisibleItems(settingsNav, getRole),
-    [settingsNav, getRole, getVisibleItems],
+    // `settingsNav` is a module-level import (never changes) — keeping it out
+    // of the deps avoids react-hooks/exhaustive-deps' outer-scope warning.
+    [getRole, getVisibleItems],
   );
+  console.log(getRole,"getRole");
+  
   const visibleSettingsNav = visibleNav.filter((item) =>
     item.label.toLowerCase().includes(navQuery.trim().toLowerCase()),
   );
@@ -1181,6 +1215,9 @@ console.log(settingsFormData,"settingsFormData");
     if (branchOptions.length !== 1) return;
     const onlyBranchId = branchOptions[0]?.value;
     if (!onlyBranchId) return;
+    // Seed the form with the single available branch once options arrive —
+    // an intentional effect write (skipped when already set).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSubAccount((prev) =>
       prev.branchId ? prev : { ...prev, branchId: onlyBranchId },
     );
@@ -1390,7 +1427,6 @@ console.log(settingsFormData,"settingsFormData");
       phoneNumber,
       password,
       branchId,
-      // Schema key is `user_type_id` (matches the form-state key).
       user_type_id: usertypeId,
       previleges,
       classSections,
@@ -1492,12 +1528,7 @@ console.log(settingsFormData,"settingsFormData");
     // Create
     try {
       setIsSavingAccount(true);
-      // Privileges are optional — only include `privileges` in the payload
-      // when the flattened value is actually non-empty. Use the FLATTENED
-      // string, never the raw form value: the class/section map stringifies to
-      // "[object Object]" (truthy!) even when it holds nothing, which sent
-      // `privileges: ""` and made the API answer with
-      // "The privileges field is required." even though the form looked filled.
+
       const hasPrivileges = String(previleges ?? "").trim() !== "";
 
       await dispatch(
@@ -1604,6 +1635,7 @@ console.log(settingsFormData,"settingsFormData");
             name={settingsFormData.name}
             username={settingsFormData.username}
             password={settingsFormData.password}
+            phoneNumber={settingsFormData.phoneNumber}
             onChange={handleSettingsChange}
           />
         );
@@ -1702,4 +1734,4 @@ console.log(settingsFormData,"settingsFormData");
   );
 };
 
-export default page;
+export default Page;

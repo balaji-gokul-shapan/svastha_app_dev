@@ -2,20 +2,6 @@ import { NextResponse } from "next/server";
 
 import { isRoleAllowedForPath } from "./lib/route-roles";
 
-/**
- * AUTH PROXY (formerly middleware.js — Next.js 16 renamed the convention)
- * ----------------------------------------------------------------
- * - /login and /register are PUBLIC (accessible without login).
- * - Every other page requires an authenticated session.
- * - The "svastha-auth" cookie stores the user's effective role (kept in sync
- *   with Redux auth state by lib/store.js — sessionStorage alone cannot be
- *   read by the proxy because it runs on the server).
- * - Restricted routes (lib/route-roles.js, keyed by user_type_id) are
- *   additionally blocked per role, so manually typing a URL doesn't bypass the
- *   sidebar's role-based menu.
- *
- * Keep this file at the project root (same level as app/).
- */
 
 const AUTH_COOKIE_NAME = "svastha-auth";
 

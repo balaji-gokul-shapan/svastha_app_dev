@@ -35,9 +35,6 @@ const SchoolStudentFilter = ({
   // and others don't need it, so the grid drops a column for them.
   const showSchoolName = getRole === "admin" || getRole === "school";
 
-  console.log(getRole, "getRole");
-  
-
   const {
     data: getAllSchoolBranch = {},
     isLoading: getAllSchoolBranchLoading,
@@ -70,9 +67,6 @@ const SchoolStudentFilter = ({
     enabled: getRole === "school" || getRole === "school_admin",
     refetchOnWindowFocus: false,
   });
-
-  console.log(getSchoolBranchData, "getSchoolBranchData");
-console.log(formData,"eeeee");
 
   // Seed the branch from the signed-in account (`ownBranch`) when the parent
   // hasn't set one. Every query below is gated on `formData.branchName`
@@ -112,7 +106,6 @@ console.log(formData,"eeeee");
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
-  console.log(getAllFilterStudent, "getAllFilterStudent");
 
   const students = useMemo(() => {
     const items = Array.isArray(getAllFilterStudent?.items)
@@ -157,8 +150,6 @@ console.log(formData,"eeeee");
     const allItems = Array.isArray(getAllFilterStudent?.items)
       ? getAllFilterStudent.items
       : [];
-      console.log(getAllFilterStudent,"getAllFilterStudent");
-      
     const years = new Set();
     allItems.forEach((student) => {
       const year = String(
@@ -166,20 +157,6 @@ console.log(formData,"eeeee");
       ).trim();
       if (year) years.add(year);
     });
-    // Diagnostic: shows which years were actually found and the field names
-    // present on the items, so we can see why only 2026-2027 appears.
-    console.log(
-      "[academic years found]",
-      Array.from(years),
-      "| item count:",
-      allItems.length,
-      "| first item keys:",
-      allItems[0] ? Object.keys(allItems[0]) : [],
-      "| sample year values:",
-      allItems
-        .slice(0, 5)
-        .map((s) => s?.academic_year ?? s?.academicYear ?? "(none)"),
-    );
     // Always show the page-level active year even before students load.
     const activeYear = String(academicYear ?? "").trim();
     if (activeYear && activeYear !== "all") years.add(activeYear);
@@ -363,8 +340,6 @@ console.log(formData,"eeeee");
     return options;
   }, [getAllSchoolBranch, getSchoolBranchData]);
 
-  console.log(fetchedBranchOptions, "fetchedBranchOptions");
-
   // Fallback for roles that can't call /schools/branch/all (e.g.
   // school_sub_account gets 401 there). They pass their OWN branch via the
   // `ownBranch` prop, so the Camp Name dropdown still shows their branch.
@@ -391,8 +366,6 @@ console.log(formData,"eeeee");
 
     return options;
   }, [fetchedBranchOptions, ownBranch, formData?.branchName]);
-
-  console.log(branchOptions, "branchOptions");
 
   // Report the resolved branch option to the parent whenever the branch value
   // changes, so consumers that need the full record (school name + address —
@@ -497,7 +470,7 @@ console.log(formData,"eeeee");
   return (
     <>
       <div
-        className={`grid gap-3 sm:grid-cols-2 my-4 ${
+        className={`grid gap-3 sm:grid-cols-2 my-4 md:grid-cols-3 ${
           showSchoolName ? "xl:grid-cols-5" : "xl:grid-cols-4"
         }`}
       >

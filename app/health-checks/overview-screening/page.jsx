@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -40,6 +39,7 @@ import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas-pro";
 import { toast } from "sonner";
 import StudentFilter from "../utilities/studentFilter";
+import { useAllScreeningReport } from "@/components/healthChecks/getScreeningReport";
 
 /* =========================================================
    COMPLETE STUDENT HEALTH PROFILE DATA
@@ -239,6 +239,81 @@ const HEALTH_PROFILE_TEMPLATE = {
     "Student is generally healthy. Growth parameters are within the expected range. Vision and hearing screenings show no significant concerns. Mild dental findings noted and routine dental follow-up is recommended.",
 };
 
+const normalizeId = (value) => String(value ?? "").trim();
+
+const recordBelongsToStudent = (record, studentIds) => {
+  const normalizedStudentIds = new Set(
+    (Array.isArray(studentIds) ? studentIds : [studentIds])
+      .map((value) => normalizeId(value).toLowerCase())
+      .filter(Boolean),
+  );
+
+  if (!normalizedStudentIds.size) return false;
+
+  const recordStudentIds = [
+    record?.id,
+    record?.cus_id,
+    record?.student_cus_id,
+    record?.student_id,
+    record?.studentId,
+    record?.school_registration_number,
+    record?.admission_number,
+    record?.student?.id,
+    record?.student?.cus_id,
+    record?.student?.student_id,
+    record?.student?.school_registration_number,
+    record?.student?.admission_number,
+    record?.report?.cus_id,
+    record?.report?.student_cus_id,
+    record?.report?.student_id,
+    record?.report?.studentId,
+    record?.report?.school_registration_number,
+    record?.report?.admission_number,
+    record?.report?.student?.id,
+    record?.report?.student?.cus_id,
+    record?.report?.student?.student_id,
+    record?.report?.student?.school_registration_number,
+    record?.report?.student?.admission_number,
+  ]
+    .map((value) => normalizeId(value).toLowerCase())
+    .filter(Boolean);
+
+  // Some report endpoints expose a student record directly. Only use its
+  // `id` when no explicit student identifier is available; otherwise `id`
+  // commonly refers to the screening record itself.
+  const idsToMatch = recordStudentIds.length
+    ? recordStudentIds
+    : [normalizeId(record?.id).toLowerCase()];
+
+  return idsToMatch.some((id) => normalizedStudentIds.has(id));
+};
+
+const findStudentScreeningRecord = (records, studentIds) => {
+  console.log( studentIds, "studentIds4444444");
+  return records.find((record) => recordBelongsToStudent(record, studentIds)) ?? null;
+};
+
+const formatMetric = (value, unit, fallback) => {
+  const text = String(value ?? "").trim();
+
+  return text ? `${text}${unit ? ` ${unit}` : ""}` : fallback;
+};
+
+const getRecordName = (record, ...keys) => {
+  for (const key of keys) {
+    const value = record?.[key];
+    const name =
+      typeof value === "object" && value !== null
+        ? value.name ?? value.label
+        : value;
+    const text = String(name ?? "").trim();
+
+    if (text) return text;
+  }
+
+  return "";
+};
+
 /* =========================================================
    MAIN PAGE
 ========================================================= */
@@ -251,28 +326,17 @@ export default function StudenthealthReport() {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [studentFilter, setStudentFilter] = useState("all");
   const [studentId, setStudentId] = useState("");
-  // PDF export — ref points at the report body, html2canvas-pro captures it
-  // and jsPDF paginates the render into a downloadable A4 document.
   const reportRef = useRef(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const authUser = useAppSelector(selectAuthUser);
   const { assignedEvents, assignEventLoading, assignEventError } =
     useAssignedEvents();
-  // Resolve the camp linked to the currently selected school filter. The
-  // shared helper returns { id, name, schoolName } (name/schoolName are "all"
-  // when no specific camp/school is selected).
+
   const selectedCamp = useMemo(
     () => findSelectedCamp(assignedEvents, schoolName),
     [assignedEvents, schoolName],
   );
-
-  // Reverse lookup for the report: general screening knows a student's camp
-  // because its roster comes FROM the camp (getStudentByEvent). Here students
-  // are listed across all camps, so fetch every assigned camp's roster and
-  // index it by each student identifier. Any selected student then resolves
-  // to its camp + school even when the school filter is still "all" — the
-  // /students/filter rows don't carry camp/school fields.
   const assignedEventIds = useMemo(
     () =>
       (Array.isArray(assignedEvents) ? assignedEvents : [])
@@ -290,9 +354,15 @@ export default function StudenthealthReport() {
         const eventId = String(event?.id ?? "").trim();
         if (!eventId) continue;
         try {
-          const result = await dispatch(getStudentByEvent({ eventId })).unwrap();
+          const result = await dispatch(
+            getStudentByEvent({ eventId }),
+          ).unwrap();
           // New paginated shape: { items: [...], total, page, perPage }
-          const rows = Array.isArray(result?.items) ? result.items : Array.isArray(result) ? result : [];
+          const rows = Array.isArray(result?.items)
+            ? result.items
+            : Array.isArray(result)
+              ? result
+              : [];
           const campName = String(event?.name ?? "").trim();
           const campSchool = String(
             event?.school?.school_name ??
@@ -314,7 +384,11 @@ export default function StudenthealthReport() {
               .filter(Boolean);
             for (const key of keys) {
               if (!map[key]) {
-                map[key] = { campId: eventId, campName, schoolName: campSchool };
+                map[key] = {
+                  campId: eventId,
+                  campName,
+                  schoolName: campSchool,
+                };
               }
             }
           }
@@ -401,6 +475,7 @@ export default function StudenthealthReport() {
         const ids = [
           student?.id,
           student?.studentId,
+          student?.student_id,
           student?.cus_id,
           student?.school_registration_number,
           student?.admission_number,
@@ -411,17 +486,92 @@ export default function StudenthealthReport() {
       }) ?? null
     );
   }, [students, studentId]);
-  console.log(selectedStudent, "selectedStudent");
 
-  // Real identity from the selected student //.
+  console.log(selectedStudent,"selectedStudentssssssssss");
+  
+
+  const selectedStudentIds = useMemo(
+    () =>
+      [
+        selectedStudent?.id,
+        selectedStudent?.cus_id,
+        selectedStudent?.student_id,
+        selectedStudent?.studentId,
+        selectedStudent?.school_registration_number,
+        selectedStudent?.admission_number,
+        studentId,
+      ].filter((value) => normalizeId(value)),
+    [selectedStudent, studentId],
+  );
+
+  console.log(selectedStudentIds,"ssssssssssswwwwwwww");
+  
+
+  const selectedStudentId = selectedStudentIds[0] ?? "";
+
+  const {
+    campScreeningRecords = [],
+    campVisionScreeningRecords = [],
+    campDentalScreeningRecords = [],
+    campHearingScreeningRecords = [],
+    campEntScreeningRecords = [],
+  } = useAllScreeningReport({
+    campId: String(selectedCamp?.id ?? selectedCamp?.camp_id ?? "").trim(),
+    // getId: selectedStudentId,
+  });
+
+  console.log(campScreeningRecords,"campScreeningRecords", selectedStudentIds, "selectedStudentIds");
+  
+  const studentData = useMemo(() => {
+    if (!selectedStudentId) {
+      return {
+        general: null,
+        vision: null,
+        dental: null,
+        hearing: null,
+        ent: null,
+      };
+    }
+
+    return {
+      general: findStudentScreeningRecord(
+        campScreeningRecords,
+        selectedStudentId,
+      )?? campScreeningRecords[0] ?? null,
+      vision: findStudentScreeningRecord(
+        campVisionScreeningRecords,
+        selectedStudentId,
+      ) ?? campVisionScreeningRecords[0] ?? null,
+      dental: findStudentScreeningRecord(
+        campDentalScreeningRecords,
+        selectedStudentId,
+      ) ?? campDentalScreeningRecords[0] ?? null,
+      hearing: findStudentScreeningRecord(
+        campHearingScreeningRecords,
+        selectedStudentId,
+      ) ?? campHearingScreeningRecords[0] ?? null,
+      ent:
+        findStudentScreeningRecord(campEntScreeningRecords, selectedStudentId) ??
+        campEntScreeningRecords[0] ??
+        null,
+    };
+  }, [
+      campScreeningRecords,
+      campVisionScreeningRecords,
+      campDentalScreeningRecords,
+      campHearingScreeningRecords,
+      campEntScreeningRecords,
+      selectedStudentId,
+      // selectedStudentId,
+    ]);
+
+    console.log(studentData, "studentDatassssssssssssssss");
+
   const healthProfile = useMemo(() => {
     if (!selectedStudent) return HEALTH_PROFILE_TEMPLATE;
     const s = selectedStudent;
+    const general = studentData.general;
 
-    // The filter's selected school + the camp linked to it via assigned
-    // events (same live resolution the general-screening AssessmentCard
-    // uses). Prefer these over the student row — /students/filter rows often
-    // don't carry school/camp names, and there must be NO mock fallback.
     const filterSchool =
       selectedCamp?.schoolName && selectedCamp.schoolName !== "all"
         ? selectedCamp.schoolName
@@ -433,11 +583,6 @@ export default function StudenthealthReport() {
         ? selectedCamp.name
         : "";
 
-    // Report-only fallback: unlike general screening (where students come
-    // from a per-camp roster, so a camp is always in context), here a
-    // student can be picked while the school filter is still "all". Match
-    // the student's own camp_id against the assigned events so camp/school
-    // still resolve.
     const studentCampId = String(
       s.camp_id ?? s.campId ?? s.event_id ?? s.eventId ?? "",
     ).trim();
@@ -456,9 +601,6 @@ export default function StudenthealthReport() {
         "",
     ).trim();
 
-    // Final fallback: look the student up in the assigned camps' rosters
-    // (campStudentMap). Covers students picked while the school filter is
-    // still "all" and non-doctor users who can't open the School select.
     const studentLookupKeys = [
       s.id,
       s.studentId,
@@ -498,10 +640,9 @@ export default function StudenthealthReport() {
 
     return {
       ...HEALTH_PROFILE_TEMPLATE,
-      // Assessment details (Camp + Location) resolve live from the filter,
-      // exactly like the general-screening AssessmentCard.
       assessment: {
         ...HEALTH_PROFILE_TEMPLATE.assessment,
+        date: general?.created_at ?? general?.screening_date ?? HEALTH_PROFILE_TEMPLATE.assessment.date,
         location: resolvedSchool,
         camp: resolvedCamp,
       },
@@ -528,16 +669,113 @@ export default function StudenthealthReport() {
         age: s.age ?? HEALTH_PROFILE_TEMPLATE.student.age,
         gender: s.gender ?? s.Gender ?? HEALTH_PROFILE_TEMPLATE.student.gender,
         bloodGroup:
-          s.blood_group ??
-          s.bloodGroup ??
+          getRecordName(general, "blood_group", "blood_group_name") ||
+          getRecordName(s, "blood_group", "blood_group_name") ||
           HEALTH_PROFILE_TEMPLATE.student.bloodGroup,
       },
+      vitals: {
+        ...HEALTH_PROFILE_TEMPLATE.vitals,
+        height: {
+          ...HEALTH_PROFILE_TEMPLATE.vitals.height,
+          value: formatMetric(
+            general?.height,
+            "cm",
+            HEALTH_PROFILE_TEMPLATE.vitals.height.value,
+          ),
+        },
+        weight: {
+          ...HEALTH_PROFILE_TEMPLATE.vitals.weight,
+          value: formatMetric(
+            general?.weight,
+            "kg",
+            HEALTH_PROFILE_TEMPLATE.vitals.weight.value,
+          ),
+        },
+        bmi: {
+          ...HEALTH_PROFILE_TEMPLATE.vitals.bmi,
+          value: formatMetric(
+            general?.bmi,
+            "",
+            HEALTH_PROFILE_TEMPLATE.vitals.bmi.value,
+          ),
+        },
+        bloodPressure: {
+          ...HEALTH_PROFILE_TEMPLATE.vitals.bloodPressure,
+          value:
+            general?.bp ??
+            general?.blood_pressure ??
+            HEALTH_PROFILE_TEMPLATE.vitals.bloodPressure.value,
+        },
+        pulse: {
+          ...HEALTH_PROFILE_TEMPLATE.vitals.pulse,
+          value: formatMetric(
+            general?.pulse,
+            "bpm",
+            HEALTH_PROFILE_TEMPLATE.vitals.pulse.value,
+          ),
+        },
+        temperature: {
+          ...HEALTH_PROFILE_TEMPLATE.vitals.temperature,
+          value: formatMetric(
+            general?.temperature,
+            "°F",
+            HEALTH_PROFILE_TEMPLATE.vitals.temperature.value,
+          ),
+        },
+        oxygen: {
+          ...HEALTH_PROFILE_TEMPLATE.vitals.oxygen,
+          value: formatMetric(
+            general?.spo2,
+            "%",
+            HEALTH_PROFILE_TEMPLATE.vitals.oxygen.value,
+          ),
+        },
+      },
+      immunization: {
+        ...HEALTH_PROFILE_TEMPLATE.immunization,
+        status:
+          getRecordName(general, "immunization", "immunization_name") ||
+          HEALTH_PROFILE_TEMPLATE.immunization.status,
+      },
+      history: {
+        ...HEALTH_PROFILE_TEMPLATE.history,
+        allergies:
+          getRecordName(general, "allergy", "allergy_name") ||
+          HEALTH_PROFILE_TEMPLATE.history.allergies,
+        chronicDisease:
+          getRecordName(general, "chronic_disease", "chronic_disease_name") ||
+          HEALTH_PROFILE_TEMPLATE.history.chronicDisease,
+        medications:
+          general?.regular_medication ||
+          HEALTH_PROFILE_TEMPLATE.history.medications,
+      },
+      referral: {
+        ...HEALTH_PROFILE_TEMPLATE.referral,
+        type: general?.referral_type || HEALTH_PROFILE_TEMPLATE.referral.type,
+        reason:
+          general?.referral_type_notes ||
+          general?.referral ||
+          HEALTH_PROFILE_TEMPLATE.referral.reason,
+        followUp:
+          general?.follow_up_period ||
+          HEALTH_PROFILE_TEMPLATE.referral.followUp,
+      },
+      clinicalNotes:
+        general?.remarks ??
+        general?.notes ??
+        HEALTH_PROFILE_TEMPLATE.clinicalNotes,
     };
-  }, [selectedStudent, schoolName, selectedCamp, assignedEvents]);
+  }, [
+    selectedStudent,
+    schoolName,
+    selectedCamp,
+    assignedEvents,
+    campStudentMap,
+    studentData.general,
+  ]);
 
-  // ADDITION: numeric scores per system, derived from the same status
-  // strings already in healthProfile — feeds the new radar chart below.
-  // Purely additive; doesn't change healthProfile or anything upstream.
+
+
   const radarValues = useMemo(
     () => ({
       growth: statusToScore(healthProfile.vitals.bmi.status),
@@ -550,16 +788,6 @@ export default function StudenthealthReport() {
     [healthProfile],
   );
 
-  // Export the rendered report as a paginated A4 PDF.
-  //
-  // Robustness (why section-by-section):
-  // 1. Each top-level section is captured on its own — if a section trips
-  //    html2canvas (e.g. an SVG-heavy block), it is skipped with a warning
-  //    instead of failing the whole export.
-  // 2. SVG colors in the app are Tailwind classes (fill-primary,
-  //    stroke-border…). A serialized SVG loses the page stylesheet, so the
-  //    computed fill/stroke/color are stamped onto the clone — otherwise the
-  //    radar chart, gauge and icons render unstyled in the PDF.
   const handleDownloadPdf = async () => {
     const node = reportRef.current;
     if (!node || isExportingPdf) return;
@@ -608,7 +836,7 @@ export default function StudenthealthReport() {
         } catch (sectionError) {
           console.error(
             `PDF export: section ${index + 1} failed — skipped`,
-            sectionError
+            sectionError,
           );
           skipped.push(index + 1);
         }
@@ -618,7 +846,11 @@ export default function StudenthealthReport() {
         throw new Error("No report sections could be rendered");
       }
 
-      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4",
+      });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
       const margin = 18;
@@ -641,14 +873,28 @@ export default function StudenthealthReport() {
           if (!pageStarted || cursorY + imageHeight > pageHeight - margin) {
             startPage();
           }
-          pdf.addImage(imgData, "PNG", margin, cursorY, contentWidth, imageHeight);
+          pdf.addImage(
+            imgData,
+            "PNG",
+            margin,
+            cursorY,
+            contentWidth,
+            imageHeight,
+          );
           cursorY += imageHeight + gap;
         } else {
           // Section taller than one page — slice it across pages.
           let rendered = 0;
           while (rendered < imageHeight) {
             startPage();
-            pdf.addImage(imgData, "PNG", margin, margin - rendered, contentWidth, imageHeight);
+            pdf.addImage(
+              imgData,
+              "PNG",
+              margin,
+              margin - rendered,
+              contentWidth,
+              imageHeight,
+            );
             rendered += contentHeight;
           }
           cursorY = margin;
@@ -657,12 +903,12 @@ export default function StudenthealthReport() {
 
       const studentName = healthProfile?.student?.name || "student";
       pdf.save(
-        `health-report-${studentName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`
+        `health-report-${studentName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`,
       );
 
       if (skipped.length > 0) {
         toast.warning(
-          `Report downloaded, but ${skipped.length} section(s) could not be rendered`
+          `Report downloaded, but ${skipped.length} section(s) could not be rendered`,
         );
       } else {
         toast.success("Report downloaded");
@@ -1557,8 +1803,6 @@ export default function StudenthealthReport() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  
-
                   <Result label="Type" value={healthProfile.referral.type} />
 
                   <Result

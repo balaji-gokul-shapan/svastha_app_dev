@@ -39,8 +39,6 @@ const MasterDashboard = () => {
   const checkDoctor = effectiveRole === "doctor";
   const isAdmin = effectiveRole === "admin";
 
-  console.log({ effectiveRole, authUser }, "MasterDashboard");
-
   if (checkDoctor || isAdmin) {
     return <StudentOverviewCharts user={authUser} />;
   }

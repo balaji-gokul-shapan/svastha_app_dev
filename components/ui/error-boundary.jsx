@@ -38,7 +38,7 @@ export class ErrorBoundary extends React.Component {
 
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="w-full max-w-lg rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+        <div className="w-full max-w-2/3 rounded-xl border border-border bg-card p-8 text-center shadow-sm">
           <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <ShieldAlert className="size-6" />
           </span>
@@ -49,7 +49,7 @@ export class ErrorBoundary extends React.Component {
 
           <p className="mt-2 text-sm text-muted-foreground">
             This page could not be rendered. The full error is in the browser
-            console — reload to try again.
+            console - reload to try again.
           </p>
 
           <pre className="mt-4 max-h-40 overflow-auto rounded-lg bg-muted p-3 text-left text-xs whitespace-pre-wrap text-muted-foreground">

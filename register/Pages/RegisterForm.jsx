@@ -39,6 +39,7 @@ import {
   createRegisterSchool,
   resetRegisterSchoolState,
 } from "@/lib/features/registerSchoolSlice";
+import { TextareaField, TextField } from "@/components/ui/text-field";
 
 const steps = [
   {
@@ -280,7 +281,6 @@ const updateBranch = (index, field, value) => {
       return false;
     }
 
-    // Clear errors when validation succeeds
     setFormErrors({});
 
     return true;
@@ -299,7 +299,8 @@ const updateBranch = (index, field, value) => {
   const handleSubmit = async () => {
     // Final gate — validate the COMPLETE form, not just step 4.
     const result = schoolRegistrationSchema.safeParse(form);
-
+      console.log(result,"result");
+      
     if (!result.success) {
       setFormErrors(result.error.format());
       toast.error("Please fix the highlighted fields before submitting.");
@@ -897,7 +898,7 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
               </div>
 
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <BranchField
+                <TextField
                   label="Branch Name"
                   value={branch.branch_name}
                   error={getBranchError(index, "branch_name")}
@@ -906,7 +907,7 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
                   }
                 />
 
-                <BranchField
+                <TextField
                   label="Registration Number"
                   value={branch.registration_number}
                   error={getBranchError(index, "registration_number")}
@@ -915,7 +916,7 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
                   }
                 />
 
-                <BranchField
+                <TextField
                   label="Address Line 1"
                   value={branch.address_line_1}
                   error={getBranchError(index, "address_line_1")}
@@ -924,7 +925,7 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
                   }
                 />
 
-                <BranchField
+                <TextField
                   label="Address Line 2"
                   value={branch.address_line_2}
                   error={getBranchError(index, "address_line_2")}
@@ -933,42 +934,42 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
                   }
                 />
 
-                <BranchField
+                <TextField
                   label="Area"
                   value={branch.area}
                   error={getBranchError(index, "area")}
                   onChange={(value) => updateBranch(index, "area", value)}
                 />
 
-                <BranchField
+                <TextField
                   label="City"
                   value={branch.city}
                   error={getBranchError(index, "city")}
                   onChange={(value) => updateBranch(index, "city", value)}
                 />
 
-                <BranchField
+                <TextField
                   label="State"
                   value={branch.state}
                   error={getBranchError(index, "state")}
                   onChange={(value) => updateBranch(index, "state", value)}
                 />
 
-                <BranchField
+                <TextField
                   label="Country"
                   value={branch.country}
                   error={getBranchError(index, "country")}
                   onChange={(value) => updateBranch(index, "country", value)}
                 />
 
-                <BranchField
+                <TextField
                   label="Pincode"
                   value={branch.pincode}
                   error={getBranchError(index, "pincode")}
                   onChange={(value) => updateBranch(index, "pincode", value)}
                 />
 
-                <BranchField
+                <TextField
                   label="Contact Person"
                   value={branch.contact_person_name}
                   error={getBranchError(index, "contact_person_name")}
@@ -977,7 +978,7 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
                   }
                 />
 
-                <BranchField
+                <TextField
                   label="Designation"
                   value={branch.contact_person_designation}
                   error={getBranchError(index, "contact_person_designation")}
@@ -986,7 +987,7 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
                   }
                 />
 
-                <BranchField
+                <TextField
                   label="Phone"
                   value={branch.contact_person_phone}
                   error={getBranchError(index, "contact_person_phone")}
@@ -995,7 +996,7 @@ function Branches({ form, addBranch, updateBranch, removeBranch, errors }) {
                   }
                 />
 
-                <BranchField
+                <TextField
                   label="Contact Email"
                   value={branch.contact_person_email}
                   error={getBranchError(index, "contact_person_email")}
@@ -1052,7 +1053,7 @@ function Review({ form, updateField }) {
         </Field>
 
         <Field label="School Profile" className="md:col-span-2">
-          <textarea
+          <TextareaField
             value={form.school_profile}
             onChange={(e) => updateField("school_profile", e.target.value)}
             rows={5}

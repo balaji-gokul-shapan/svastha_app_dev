@@ -24,7 +24,7 @@ import {
   bloodGroupOptions,
   calcBmi,
   examinerOptions,
-  immunizationOptions,
+  immunizationOptions as immunizationOptionsFromData,
   locationOptions,
   bmiCategory,
   GROWTH_STANDARD_BANDS,
@@ -104,7 +104,6 @@ function FieldLabel({ children }) {
   );
 }
 
-/** Reusable radio row built on the shadcn RadioGroup primitives. */
 function RadioChoiceRow({ label, name, value, onChange, options }) {
   return (
     <div>
@@ -552,6 +551,7 @@ export default function GeneralScreeningPage() {
         "height-weight-standards",
         "immunizations",
         "vital-signs",
+        "posture-findings"
       ]),
     [masterScreeningData],
   );
@@ -570,8 +570,9 @@ export default function GeneralScreeningPage() {
     requiredMasterData["consciousness-masters"] ?? [];
 
   const appearanceOptions = requiredMasterData["appearance-masters"] ?? [];
-
   const skinOptions = requiredMasterData["skin-masters"] ?? [];
+  const postureFindingsOptions = requiredMasterData["posture-findings"] ?? [];
+  const immunizationMasterOptions = requiredMasterData["immunizations"] ?? [];
 
   const authUser = useAppSelector(selectAuthUser);
 
@@ -674,7 +675,7 @@ export default function GeneralScreeningPage() {
 
   const [physicalExamination, setPhysicalExamination] = useState({
     generalAppearance: appearanceOptions?.[0]?.name ?? "",
-    postureSpine: appearanceOptions?.[0]?.name ?? "",
+    postureSpine: postureFindingsOptions?.[0]?.name ?? "",
     nutritionalStatus: nutritionOptions?.[0]?.name ?? "",
     consciousness: consciousnessOptions?.[0]?.name ?? "",
     cvs: "",
@@ -887,6 +888,17 @@ export default function GeneralScreeningPage() {
         "",
     );
 
+    setImmunization(
+      immunizationMasterOptions.find(
+        (item) => String(item.id) === String(screeningRecord?.immunization_id),
+      )?.name ??
+        screeningRecord?.immunization?.name ??
+        screeningRecord?.immunization_name ??
+        screeningRecord?.immunization_status ??
+        immunizationMasterOptions[0]?.name ??
+        "up_to_date",
+    );
+
     setBloodGroup(
       screeningRecord?.blood_group?.name ??
         screeningRecord?.blood_group_name ??
@@ -959,12 +971,12 @@ export default function GeneralScreeningPage() {
       ),
 
       postureSpine: normalizeChoice(
-        appearanceOptions.find(
+        postureFindingsOptions.find(
           (item) => String(item.id) === String(screeningRecord?.posture_spine),
         )?.name ??
           screeningRecord?.posture_spine ??
           screeningRecord?.postureSpine,
-        appearanceOptions.map((item) => item.name),
+        postureFindingsOptions.map((item) => item.name),
         prev.postureSpine || "Normal",
       ),
 
@@ -1556,9 +1568,14 @@ export default function GeneralScreeningPage() {
       physicalExamination.generalAppearance,
     );
 
-    const postureAppearanceEntry = getExaminationMastersId(
-      appearanceOptions,
+    const postureFindingEntry = getExaminationMastersId(
+      postureFindingsOptions,
       physicalExamination.postureSpine,
+    );
+
+    const immunizationEntry = getExaminationMastersId(
+      immunizationMasterOptions,
+      immunization,
     );
 
     const skinAssessmentEntry = getExaminationMastersId(
@@ -1582,7 +1599,8 @@ export default function GeneralScreeningPage() {
 
       chronic_disease_id: chronicDiseaseEntry?.id ?? null,
 
-      immunization_id: IMMUNIZATION_MAP[immunization] || 1,
+      immunization_id:
+        immunizationEntry?.id ?? IMMUNIZATION_MAP[immunization] ?? 1,
 
       height: Number(height) || 0,
 
@@ -1616,7 +1634,7 @@ export default function GeneralScreeningPage() {
 
       general_appearance: generalAppearanceEntry?.id ?? "",
 
-      posture_spine: postureAppearanceEntry?.id ?? "",
+      posture_spine: postureFindingEntry?.id ?? "",
 
       nutritional_status: nutritionEntry?.id ?? null,
 
@@ -1775,6 +1793,8 @@ export default function GeneralScreeningPage() {
     nutritionOptions,
     consciousnessOptions,
     appearanceOptions,
+    postureFindingsOptions,
+    immunizationMasterOptions,
   ]);
 
   const handleSaveScreening = useCallback(() => {
@@ -1793,7 +1813,7 @@ export default function GeneralScreeningPage() {
 
     setAllergy("None");
     setChronicDisease("None");
-    setImmunization("up_to_date");
+    setImmunization(immunizationMasterOptions?.[0]?.name ?? "up_to_date");
     setNotes("");
 
     setClinicalSigns({
@@ -1811,7 +1831,7 @@ export default function GeneralScreeningPage() {
 
     setPhysicalExamination({
       generalAppearance: appearanceOptions?.[0]?.name ?? "",
-      postureSpine: appearanceOptions?.[0]?.name ?? "",
+      postureSpine: postureFindingsOptions?.[0]?.name ?? "",
       nutritionalStatus: nutritionOptions?.[0]?.name ?? "",
       consciousness: consciousnessOptions?.[0]?.name ?? "",
       cvs: "",
@@ -1844,8 +1864,10 @@ export default function GeneralScreeningPage() {
     bloodGroupOption,
     skinOptions,
     appearanceOptions,
+    postureFindingsOptions,
     nutritionOptions,
     consciousnessOptions,
+    immunizationMasterOptions,
   ]);
 
   const handleCancelAssessment = useCallback(() => {
@@ -1947,6 +1969,39 @@ export default function GeneralScreeningPage() {
     [bloodGroupOption],
   );
 
+  const immunizationToggleOptions = useMemo(
+    () => {
+      const source =
+        immunizationMasterOptions.length > 0
+          ? immunizationMasterOptions
+          : immunizationOptionsFromData;
+
+      return source.map((item) => {
+        const value =
+          typeof item === "string"
+            ? item
+            : item?.value ?? item?.name ?? item;
+        const label =
+          typeof item === "string"
+            ? item
+            : item?.label ?? item?.name ?? value;
+        const tone =
+          typeof item === "object" && item?.tone
+            ? item.tone
+            : value === "up_to_date"
+              ? "good"
+              : value === "partial"
+                ? "warn"
+                : value === "overdue"
+                  ? "bad"
+                  : "neutral";
+
+        return { value, label, tone };
+      });
+    },
+    [immunizationMasterOptions, immunizationOptionsFromData],
+  );
+
   const nutritionToggleOptions = useMemo(
     () =>
       (nutritionOptions.length
@@ -2024,6 +2079,32 @@ export default function GeneralScreeningPage() {
         };
       }),
     [appearanceOptions],
+  );
+
+  
+  const postureFindingsToggleOptions = useMemo(
+    () =>
+      (postureFindingsOptions.length
+        ? postureFindingsOptions
+        : ["Normal", "Needs Attention", "NA"].map((name) => ({
+            id: undefined,
+            name,
+          }))
+      ).map((item) => {
+        const name = item.name ?? item;
+
+        return {
+          value: name,
+          label: name,
+          tone:
+            name === "Normal"
+              ? "good"
+              : name === "Needs Attention"
+                ? "warn"
+                : "neutral",
+        };
+      }),
+    [postureFindingsOptions],
   );
 
   const skinAssessmentToggleOptions = useMemo(
@@ -2210,6 +2291,7 @@ export default function GeneralScreeningPage() {
                     onChange={handlePhysicalExaminationChange}
                     nutritionToggleOptions={nutritionToggleOptions}
                     consciousnessToggleOptions={consciousnessToggleOptions}
+                    postureFindingsToggleOptions={postureFindingsToggleOptions}
                     generalAppearanceToggleOptions={
                       generalAppearanceToggleOptions
                     }
@@ -2228,7 +2310,7 @@ export default function GeneralScreeningPage() {
                       handleBloodGroupChange={handleBloodGroupChange}
                       formErrors={formErrors}
                       bloodGroupToggleOptions={bloodGroupToggleOptions}
-                      immunizationOptions={immunizationOptions}
+                      immunizationOptions={immunizationToggleOptions}
                       immunization={immunization}
                       setImmunization={setImmunization}
                     />
@@ -2242,6 +2324,7 @@ export default function GeneralScreeningPage() {
                         formErrors={formErrors}
                         allergies={allergies}
                         chronicDiseasesOption={chronicDiseasesOption}
+                        // postureFindingsToggleOptions={postureFindingsToggleOptions}
                       />
 
                       <article className="rounded-xl border border-border bg-card p-4">

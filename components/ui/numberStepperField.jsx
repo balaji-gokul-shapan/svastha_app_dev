@@ -13,6 +13,7 @@ export function NumberStepperField({
   unit,
   disabled = false,
   error,
+  required,
 }) {
   const numericValue = Number(value) || 0;
   const hasError = Boolean(error);
@@ -40,12 +41,16 @@ export function NumberStepperField({
   return (
     <div>
       {label ? (
-        <label className="mb-1.5 block text-sm font-medium text-foreground">
+        <label className="field-label mb-2">
           {label}
+          {required ? <span className="field-required">*</span> : null}
         </label>
       ) : null}
 
-      <div className="relative flex h-10 w-full items-center rounded-md border border-input bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30">
+      <div
+        className={`relative flex h-10 w-full items-center rounded-md border border-input bg-background focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/30 ${
+          hasError ? "border-destructive" : ""
+        }`}>
         <input
           type="number"
           value={value ?? ""}
@@ -53,6 +58,8 @@ export function NumberStepperField({
           max={max}
           step={step}
           disabled={disabled}
+          required={required}
+          aria-required={required}
           onChange={(event) => {
             const raw = event.target.value;
             // Keep an empty field empty instead of forcing "0".

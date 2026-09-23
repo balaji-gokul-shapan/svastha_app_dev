@@ -436,15 +436,7 @@ const StudentFilter = ({
     refetchOnReconnect: true,
   });
 
-  /*
-   * Fetch ALL students (all pages) for complete class/section dropdown options.
-   *
-   * CRITICAL: Uses fetchWithAuth directly (NOT Redux dispatch) so this query
-   * never touches the shared Redux slice. Previously, dispatching getStudentByEvent
-   * here caused a race condition — the Redux PENDING handler clears state.students,
-   * and FULFILLED overwrites with all students — racing against the filtered query
-   * and causing the student dropdown to show wrong data.
-   */
+
   const { data: allStudentsForFilters = [] } = useQuery({
     queryKey: ["all-event-students-for-filters", selectedCamp?.id],
     queryFn: async () => {
@@ -537,16 +529,7 @@ const StudentFilter = ({
   /* ------------------------------------------------------------------------ */
 
   const eventStudents = useMemo(() => {
-    /*
-     * When a camp is selected, PREFER the Redux roster (`eventAssignState.students`)
-     * — it accumulates appended pages from infinite scroll (page 2+). The React
-     * Query result (`getStundentByEvent`) is page 1 ONLY, so preferring it would
-     * cap the dropdown at the first page forever.
-     *
-     * The slice is a reliable source now: the allStudentsForFilters query fetches
-     * via fetchWithAuth directly and never touches Redux, so the roster is written
-     * only by the filtered query + load-more appends.
-     */
+ 
     if (selectedCamp?.id) {
       const roster = eventAssignState?.students;
 
@@ -621,8 +604,10 @@ const StudentFilter = ({
   /* Do NOT add another useEffect that fetches all pages.                     */
   /* ------------------------------------------------------------------------ */
 
+  const selectedCampIdForLoadMore = selectedCamp?.id;
+
   const handleLoadMoreStudents = useCallback(() => {
-    if (!selectedCamp?.id) {
+    if (!selectedCampIdForLoadMore) {
       return;
     }
 
@@ -638,7 +623,7 @@ const StudentFilter = ({
 
     dispatch(
       getStudentByEvent({
-        eventId: selectedCamp.id,
+        eventId: selectedCampIdForLoadMore,
         page: nextPage,
         perPage: studentPerPage || 50,
         studentClass: classFilter === "all" ? "" : classFilter,
@@ -647,7 +632,7 @@ const StudentFilter = ({
     );
   }, [
     dispatch,
-    selectedCamp?.id,
+    selectedCampIdForLoadMore,
     studentPage,
     studentPerPage,
     loadingMoreStudents,
@@ -674,6 +659,8 @@ const StudentFilter = ({
   /* ------------------------------------------------------------------------ */
   /* Search students                                                          */
   /* ------------------------------------------------------------------------ */
+
+  const selectedCampIdForSearch = selectedCamp?.id;
 
   const handleStudentSearch = useCallback(
     async (keyword) => {
@@ -816,7 +803,7 @@ const StudentFilter = ({
 
           const result = await dispatch(
             getStudentByEvent({
-              eventId: selectedCamp?.id,
+              eventId: selectedCampIdForSearch,
               page: nextPage,
               perPage: 50,
               studentClass: classFilter === "all" ? "" : classFilter,
@@ -874,7 +861,7 @@ const StudentFilter = ({
 
       setStudentSearchOptions(matches);
     },
-    [dispatch, selectedCamp?.id, classFilter, sectionFilter],
+    [dispatch, selectedCampIdForSearch, classFilter, sectionFilter],
   );
 
   /* ------------------------------------------------------------------------ */

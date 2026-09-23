@@ -70,7 +70,8 @@ export function Sidebar() {
 
   console.log("Current Role:", getRole);
 
-  const navItems = [
+  const navItems = React.useMemo(
+    () => [
     {
       label: "Dashboard",
       href: "/",
@@ -195,9 +196,12 @@ export function Sidebar() {
       //     roles: ["admin", "school_admin", "doctor"],
       //   },]
     },
-  ];
+    ],
+    [],
+  );
 
-  const bottomItems = [
+  const bottomItems = React.useMemo(
+    () => [
     {
       label: "Settings",
       href: "/settings",
@@ -213,7 +217,9 @@ export function Sidebar() {
 
       roles: [],
     },
-  ];
+    ],
+    [],
+  );
 
   const getVisibleItems = React.useCallback((items, role) => {
     if (!Array.isArray(items)) {

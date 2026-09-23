@@ -11,6 +11,7 @@ const HealthHistory = ({
   formErrors,
   allergies,
   chronicDiseasesOption,
+  postureFindingsToggleOptions,
 }) => {
   return (
     <FramerCard>

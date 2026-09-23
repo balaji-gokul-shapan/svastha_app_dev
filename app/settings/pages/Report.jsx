@@ -377,7 +377,7 @@ const Report = ({
               School letterhead
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Include your school's logo and header on every report page.
+              Include your school&rsquo;s logo and header on every report page.
             </p>
           </div>
           <Switch

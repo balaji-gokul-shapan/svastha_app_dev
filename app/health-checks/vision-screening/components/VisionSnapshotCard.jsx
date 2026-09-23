@@ -3,7 +3,11 @@ import React from "react";
 import { VisionSnapshot } from "../utilities/EyeSnapshot";
 import ReusableSelect from "@/components/ui/reusable-select";
 import { TextField } from "@/components/ui/text-field";
-import { nearAcuityOptions } from "../datas/vision-screening-data";
+import {
+  distanceAcuityOptions,
+  nearAcuityOptions,
+  severityTone,
+} from "../datas/vision-screening-data";
 const SEVERITY_TEXT_CLASS = {
   success: "text-success",
   info: "text-info",

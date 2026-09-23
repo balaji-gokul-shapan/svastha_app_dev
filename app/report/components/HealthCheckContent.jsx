@@ -7,11 +7,13 @@ import { useAppDispatch } from "@/lib/hooks";
 import {
   Activity,
   BadgeCent,
+  Cake,
   Calendar,
   CalendarCheck,
   Check,
   CheckCircle2,
   Copy,
+  Droplet,
   Ear,
   Eye,
   FileText,
@@ -31,6 +33,10 @@ import jsPDF from "jspdf";
 import ToothIcon from "@/app/health-checks/dental-screening/asset/toothIcon";
 import { useAppSelector } from "@/lib/hooks";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import WeightIcon from "@iconify-react/healthicons/weight";
+import HeightIcon from "@iconify-react/healthicons/height";
+import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
 /* Sub-components                                                              */
@@ -202,7 +208,9 @@ function StatusCard({ icon: Icon, title, status, tone, toneClass, iconClass }) {
         >
           <Icon className="size-4" />
         </div>
-        <Badge variant={resolvedVariant} className="mt-0.5 text-xs opacity-85">{status}</Badge>
+        <Badge variant={resolvedVariant} className="mt-0.5 text-xs opacity-85">
+          {status}
+        </Badge>
       </div>
       <p className="text-xs font-bold">{title}</p>
     </div>
@@ -276,6 +284,36 @@ function calculateAge(dob) {
   return `${years} Years ${months} Months`;
 }
 
+function formatMetric(value, unit) {
+  const raw = String(value ?? "").trim();
+
+  if (!raw) return "--";
+
+  const text =
+    unit && raw.toLowerCase().endsWith(unit.toLowerCase())
+      ? raw.slice(0, -unit.length).trim()
+      : raw;
+
+  if (!text) return "--";
+
+  return unit ? `${text} ${unit}` : text;
+}
+
+function getRecordName(record, ...keys) {
+  for (const key of keys) {
+    const value = record?.[key];
+    const name =
+      typeof value === "object" && value !== null
+        ? value.name ?? value.label
+        : value;
+    const text = String(name ?? "").trim();
+
+    if (text) return text;
+  }
+
+  return "";
+}
+
 /* -------------------------------------------------------------------------- */
 /* Main component — page-level (no modal wrapper)                             */
 /* -------------------------------------------------------------------------- */
@@ -287,8 +325,7 @@ export default function HealthCheckContent({
   camp,
 }) {
   const reportRef = useRef(null);
-  console.log(camp,"campcamp");
-  
+  console.log(camp, "campcamp");
 
   const studentName = student?.name ?? student?.student_name ?? "Student";
   const studentPhoto =
@@ -298,10 +335,24 @@ export default function HealthCheckContent({
     student?.image ??
     student?.photo ??
     "";
+
+    
   // The selected branch is supplied by the School Name dropdown. Fall back to
   // the signed-in account only when a branch has not been selected yet.
   const selectedSchool = branchProp ?? selectUser?.branch ?? selectUser;
   console.log(selectUser, "selectedSchool");
+
+  const getGenderIcon = (gender) => {
+    if (!gender) return null;
+    switch (gender.toLowerCase()) {
+      case "male":
+        return "♂️";
+      case "female":
+        return "♀️";
+      default:
+        return null;
+    }
+  };
 
   const schoolName =
     selectedSchool?.label ??
@@ -418,6 +469,107 @@ export default function HealthCheckContent({
 
   console.log({ generalScreeningRecord }, "dddddd");
   console.log({ visionScreeningRecord }, "ssssss");
+    console.log({ dentalScreeningRecord }, "vvvvvvvv");
+
+  
+  const getBloodGroup = (bloodGroup) =>
+    String(bloodGroup ?? "").trim() ||
+    getRecordName(
+      generalScreeningRecord,
+      "blood_group",
+      "blood_group_name",
+      "bloodGroup",
+    ) ||
+    "--";
+
+  const getHeight = (height) =>
+    formatMetric(height ?? generalScreeningRecord?.height, "cm");
+
+  const getWeight = (weight) =>
+    formatMetric(weight ?? generalScreeningRecord?.weight, "kg");
+
+
+  const getAllRecordForGeneral = () => ({
+    height: getHeight(),
+    weight: getWeight(),
+    bmi: formatMetric(generalScreeningRecord?.bmi, ""),
+    bloodGroup: getBloodGroup(),
+    status:
+      getRecordName(
+        generalScreeningRecord,
+        "consolidate_report_result",
+        "result",
+        "status",
+      ) || "--",
+    regularMedication:
+      getRecordName(
+        generalScreeningRecord,
+        "regular_medication",
+        "regularMedication",
+      ) || "--",
+  });
+
+  const getAllRecordForVision = () => ({
+    distanceWithout: visionScreeningRecord?.od_distance_without ?? "NA",
+    nearWithout: visionScreeningRecord?.od_near_without ?? "NA",
+    distanceWith: visionScreeningRecord?.od_distance_with ?? "NA",
+    nearWith: visionScreeningRecord?.od_near_with ?? "NA",
+    distanceWithoutOS: visionScreeningRecord?.os_distance_without ?? "NA",
+    nearWithoutOS: visionScreeningRecord?.os_near_without ?? "NA",
+    distanceWithOS: visionScreeningRecord?.os_distance_with ?? "NA",
+    nearWithOS: visionScreeningRecord?.os_near_with ?? "NA",
+    remarks: visionScreeningRecord?.remarks ?? "",
+    remarksOS: visionScreeningRecord?.os_remarks ?? "",
+    correction: visionScreeningRecord?.correction ?? "",
+    riskScore: visionScreeningRecord?.risk_score ?? "",
+    severityScore: visionScreeningRecord?.severity_score ?? "",
+    followUp: visionScreeningRecord?.follow_up ?? "",
+    remarks: visionScreeningRecord?.remarks ?? "",
+  });
+
+  const getAllRecordForDental = () => ({
+    teethCondition: dentalScreeningRecord?.teeth_condition ?? "",
+    gumCondition: dentalScreeningRecord?.gum_condition ?? "",
+    riskScore: dentalScreeningRecord?.risk_score ?? "",
+    severityScore: dentalScreeningRecord?.severity_score ?? "",
+    followUp: dentalScreeningRecord?.follow_up ?? "",
+    remarks: dentalScreeningRecord?.remarks ?? "",
+    gingivaHealth: dentalScreeningRecord?.gingival_health ?? "",
+    referralReason: dentalScreeningRecord?.referral_reason ?? "",
+    healthyCount: dentalScreeningRecord?.healthy_count ?? "",
+  });
+
+  const generalRecord = getAllRecordForGeneral();
+  const visionRecord = getAllRecordForVision();
+  const dentalRecord = getAllRecordForDental();
+  console.log({ visionRecord }, "visionRecord");
+  console.log({ visionScreeningRecord }, "visionScreeningRecord");
+  console.log({ dentalRecord }, "dentalRecord");
+  console.log({ dentalScreeningRecord }, "dentalScreeningRecord");
+
+
+  // Raw values kept for the header badges, which pass them in explicitly.
+  const heightValue = generalScreeningRecord?.height;
+  const weightValue = generalScreeningRecord?.weight;
+  const bloodGroupValue = generalRecord.bloodGroup;
+  const physicalExamFinding = generalRecord.status;
+  const visionExamFinding = visionRecord.status;
+  const dentalExamFinding = dentalRecord.status;
+
+  const physicalExamRemark =
+    [
+      // ["Height", generalRecord.height],
+      // ["Weight", generalRecord.weight],
+      // ["BMI", generalRecord.bmi],
+      // ["Blood Group", generalRecord.bloodGroup],
+      ["", generalRecord.regularMedication],
+    ]
+      .filter(([, value]) => value && value !== "--")
+      .map(([label, value]) => (label ? `${label}: ${value}` : value))
+      .join(" · ") ||
+    (generalScreeningRecord
+      ? "No vitals recorded"
+      : "No screening record available");
 
   const handleDownloadPDF = async () => {
     const element = reportRef.current;
@@ -651,7 +803,7 @@ export default function HealthCheckContent({
       >
         {showStudentInfo ? (
           <section className="space-y-4">
-            <div className="flex flex-col items-center gap-4">
+            {/* <div className="flex flex-col items-center gap-4">
               <h2 className="text-center text-foreground">
                 {schoolName}
               </h2>
@@ -662,8 +814,33 @@ export default function HealthCheckContent({
               ) : (
                 null
               )}
-            </div>
+            </div> */}
             <div className="flex flex-col items-end gap-1">
+              <Link
+                href="/"
+                aria-label="Svastha home"
+                className={cn(
+                  "flex h-10 w-full items-center justify-end gap-2 overflow-hidden rounded-md px-3",
+                  "transition-[padding,gap] duration-200 ease-linear",
+                  "group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-2",
+                )}
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md">
+                  <Image src="/logo.svg" alt="Logo" width={24} height={24} />
+                </span>
+
+                <span
+                  className={cn(
+                    "min-w-0 max-w-40 truncate font-sf text-4xl font-bold tracking-wide text-brand-blue",
+                    "transition-[max-width,opacity] duration-200 ease-linear",
+                    "group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:opacity-0",
+                  )}
+                >
+                  Svas
+                  <span className="text-brand-green">t</span>
+                  ha
+                </span>
+              </Link>
               <h6 className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="size-3.5 shrink-0 text-primary" />
                 <span className="whitespace-nowrap">
@@ -743,19 +920,66 @@ export default function HealthCheckContent({
                     </Badge>
                     <Badge variant="outline" className="w-fit">
                       <span className="text-muted-foreground font-bold">
-                        {student?.gender ?? "--"}
+                        {getGenderIcon(student?.gender) ?? "--"}{" "}
+                        {student?.gender}
                       </span>
                     </Badge>
                   </div>
-                  <div className="flex flex-row gap-3">
-                    <Badge
-                      variant="special"
-                      className="bg-secondary border-secondary"
-                    >
-                      <span className="text-muted-foreground font-bold">
-                        {calculateAge(dobValue)}
-                      </span>
-                    </Badge>
+                  <div className="flex w-full flex-wrap items-center gap-3">
+                    <div className="flex shrink-0">
+                      <Badge
+                        variant="special"
+                        className="border-secondary bg-secondary"
+                      >
+                        <span className="font-bold text-muted-foreground flex items-center gap-1">
+                          <Cake className="text-primary size-4" />
+                          {calculateAge(dobValue)}
+                        </span>
+                      </Badge>
+                    </div>
+
+                    <div className="flex shrink-0">
+                      <Badge
+                        variant="normal"
+                        className=""
+                      >
+                        <span className="font-bold text-muted-foreground flex items-center gap-1">
+                          <HeightIcon className="text-primary size-4" />
+                          {getHeight(heightValue)}
+                        </span>
+                      </Badge>
+                    </div>
+
+                    <div className="flex shrink-0">
+                      <Badge
+                        variant="warning"
+                      >
+                        <span className="font-bold text-muted-foreground flex items-center gap-1">
+                          <WeightIcon className="text-primary size-4 " />
+                          {getWeight(weightValue)}
+                        </span>
+                      </Badge>
+                    </div>
+                    {/* <div className="flex shrink-0">
+                      <Badge
+                        variant="normal"
+                      >
+                        <span className="font-bold text-muted-foreground flex items-center gap-1">
+                          <BmiIcon  className="text-primary size-4 " />
+                          {getBMI(weightValue, heightValue)}
+                        </span>
+                      </Badge>
+                    </div> */}
+                    <div className="flex shrink-0">
+                      <Badge
+                        variant="bad"
+                      >
+                        <span className="font-bold text-muted-foreground flex items-center gap-1">
+                          <Droplet  className="text-destructive size-4" />
+                          {getBloodGroup(bloodGroupValue)}
+                        </span>
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -865,8 +1089,8 @@ export default function HealthCheckContent({
                 {showVitals ? (
                   <ReportRow
                     area="Physical Examination"
-                    finding="Normal"
-                    remark="No significant abnormalities"
+                    finding={physicalExamFinding}
+                    remark={physicalExamRemark}
                     pdfClass="physical"
                     showRemarks={showRemarks}
                     padClass={rowPadClass}
@@ -875,7 +1099,7 @@ export default function HealthCheckContent({
                 {showVision ? (
                   <ReportRow
                     area="Vision Screening"
-                    finding="Normal"
+                    finding={visionExamFinding}
                     remark="6/6 in both eyes"
                     pdfClass="vision"
                     showRemarks={showRemarks}
@@ -919,15 +1143,15 @@ export default function HealthCheckContent({
             {showVitals ? (
               <MobileReportCard
                 area="Physical Examination"
-                finding="Normal"
-                remark="No significant abnormalities"
+                finding={physicalExamFinding}
+                remark={physicalExamRemark}
                 showRemarks={showRemarks}
               />
             ) : null}
             {showVision ? (
               <MobileReportCard
                 area="Vision Screening"
-                finding="Normal"
+                finding={visionExamFinding}
                 remark="6/6 in both eyes"
                 showRemarks={showRemarks}
               />

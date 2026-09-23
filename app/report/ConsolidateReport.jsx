@@ -48,7 +48,7 @@ function ReportEmptyState() {
 
 export default function ConsolidateReport() {
   const dispatch = useDispatch();
-  const { filterProps, selectedStudent, selectedCamp, assignedEvents } =
+  const { filterProps, selectedStudent, selectedCamp, assignedEvents, classFilter, sectionFilter } =
     useStudentFilter();
   const [selectedBranch, setSelectedBranch] = useState(null);
   const [activeTab, setActiveTab] = useState("single-report");
@@ -59,6 +59,8 @@ export default function ConsolidateReport() {
   const activeCampEvent = useMemo(() => {
     const eventList = Array.isArray(assignedEvents) ? assignedEvents : [];
     const id = getCampId(selectedCamp);
+    console.log(selectedCamp,"selectedCamp");
+    
 
     if (!id) return null;
 
@@ -75,9 +77,6 @@ export default function ConsolidateReport() {
   } = useQuery({
     queryKey: ["getSchoolBranch"],
     queryFn: () => dispatch(getAllSchoolBranches()).unwrap(),
-    // Any signed-in non-doctor account may fetch its own branch profile.
-    // Gating on an explicit role list breaks when useAuthRole resolves to a
-    // different string ("school_account", "" while the session loads, …).
     enabled: getRole !== "doctor" && Boolean(getRole),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -170,7 +169,7 @@ export default function ConsolidateReport() {
         defaultValue="single-report"
         className="w-full"
       >
-        <div className="sticky top-14 z-10 flex flex-col gap-3 bg-background/80 px-0 backdrop-blur supports-backdrop-filter:bg-background/60 md:flex-row md:items-center md:justify-between">
+        <div className="sticky top-14 z-10 flex flex-col gap-3 p-5 bg-background/80 px-0 backdrop-blur supports-backdrop-filter:bg-background/60 md:flex-row md:items-center md:justify-between">
           <div className="w-full">
             <h1 className="font-sf text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
               Health Check Report
@@ -225,10 +224,7 @@ export default function ConsolidateReport() {
         <StudentFilter {...filterProps} />
       ) : (
         <SchoolStudentFilter
-          // SchoolStudentFilter maps { 1: admin, 2: school, 3: teacher } — fall
-          // back to the resolved role string when the account object carries
-          // no user_type_id, so school accounts still get the School Name
-          // dropdown and the branch queries enabled.
+
           selectRole={selectUser?.user_type_id ?? ROLE_IDS[getRole]}
           {...filterProps}
           onSelectedBranchChange={setSelectedBranch}
@@ -244,6 +240,7 @@ export default function ConsolidateReport() {
                 student={selectedStudent}
                 branch={defaultBranch ?? selectedBranch}
                 camp={selectedCamp}
+                {...filterProps}
               />
             </div>
           ) : (
@@ -260,7 +257,11 @@ export default function ConsolidateReport() {
                 branch={defaultBranch ?? selectedBranch}
                 camp={selectedCamp}
               /> */}
-              <PrimaryDoctorTab/>
+              <PrimaryDoctorTab event={activeCampEvent}
+              camp={selectedCamp}
+              student={selectedStudent}
+              classFilter={classFilter}
+              sectionFilter={sectionFilter}/>
             </div>
           {/* ) : ( */}
             {/* <ReportEmptyState /> */}

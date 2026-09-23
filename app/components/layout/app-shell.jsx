@@ -54,9 +54,6 @@ export function AppShell({ children }) {
   }
 
   if (!isClient || !isAuthenticated) {
-    // Never return a bare empty <main> here: the entire UI below is
-    // client-rendered, so a blank page used to be the failure mode for
-    // everything, with nothing on screen to explain why.
     return (
       <FullScreenLoader
         label={isAuthenticated ? "Loading your dashboard..." : "Restoring your session..."}
@@ -73,10 +70,16 @@ export function AppShell({ children }) {
        */}
       <SidebarTrigger className="fixed left-3 top-4 z-50 md:hidden" />
 
-      <div className="flex  flex-1 flex-col">
+      {/*
+       * `min-w-0` is required here: this is a flex child of the sidebar row,
+       * so without it the column keeps `min-width: auto` and any wide child
+       * (e.g. a data table on mobile) stretches the whole page instead of
+       * scrolling inside its own container.
+       */}
+      <div className="flex min-w-0 flex-1 flex-col">
         <Navbar title="Dashboard" />
         <AppBreadcrumb />
-        <main className="flex-1 p-4 py-1.5 sm:px-6">{children}</main>
+        <main className="min-w-0 flex-1 p-4 py-1.5 sm:px-6">{children}</main>
       </div>
     </SidebarProvider>
   );

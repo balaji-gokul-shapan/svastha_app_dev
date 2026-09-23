@@ -19,6 +19,15 @@ export default function FormField({
   onChange,
   rightIcon,
   inputClassName,
+  // Native pass-throughs. Without these, props like `autoComplete` were
+  // silently dropped — which broke password-manager "save new password"
+  // prompts and the `name`/`required` semantics of the form.
+  name,
+  required,
+  autoComplete,
+  disabled,
+  onKeyDown,
+  onBlur,
 }) {
   // Use literal class tokens so Tailwind's scanner can detect them.
   const rightPadding = rightIcon ? "pr-10" : "";
@@ -31,10 +40,15 @@ export default function FormField({
       <div className="relative">
         <input
           id={id}
-          name={id}
+          name={name ?? id}
           type={type}
           placeholder={placeholder}
           value={value ?? ""}
+          required={required}
+          autoComplete={autoComplete}
+          disabled={disabled}
+          onKeyDown={onKeyDown}
+          onBlur={onBlur}
           onChange={(event) => onChange?.(event.target.value)}
           className={`h-10 w-full rounded-md border border-input bg-background px-3 ${rightPadding} text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30${inputClassName ? ` ${inputClassName}` : ""}`}
         />

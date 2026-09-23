@@ -1,11 +1,12 @@
 "use client";
 
-import {
-  createCoreRowModel,
-  flexRender,
-  useTable,
-} from "@tanstack/react-table";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import * as React from "react";
 
+import { createCoreRowModel, flexRender, useTable } from "@tanstack/react-table";
+
+import { Pagination } from "@/components/ui/pagination";
+import ReusableSelect from "@/components/ui/reusable-select";
 import {
   Table,
   TableBody,
@@ -15,35 +16,192 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { cn } from "@/lib/utils";
+
+/**
+ * Sort comparator: numbers numerically, everything else case-insensitive and
+ * numeric-aware; empty values always sink to the bottom regardless of order.
+ */
+function compareValues(a, b) {
+  const aEmpty = a === null || a === undefined || a === "";
+  const bEmpty = b === null || b === undefined || b === "";
+
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty) return 1;
+  if (bEmpty) return -1;
+
+  const aNumber = Number(a);
+  const bNumber = Number(b);
+  if (!Number.isNaN(aNumber) && !Number.isNaN(bNumber)) {
+    return aNumber - bNumber;
+  }
+
+  return String(a).localeCompare(String(b), undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+
 export function DataTable({
   columns,
-  data,
+  data = [],
   emptyMessage = "No results.",
   emptyState,
   onRowClick,
+  enablePagination = false,
+  enableSorting = false,
+  initialPageSize = 10,
+  pageSizeOptions = [10, 20, 50, 100],
+
+  serverPagination,
+  isLoading = false,
+  className,
+  // Applied to the inner <table>. Use it to force a `min-w-*` so narrow
+  // screens scroll the table horizontally instead of squeezing every column.
+  tableClassName,
 }) {
+  // `sort` is { id, desc } or null (unsorted). Page state is clamped on read so
+  // a shrinking dataset can never render an out-of-range blank page.
+  const [sort, setSort] = React.useState(null);
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [pageSize, setPageSize] = React.useState(initialPageSize);
+
   const table = useTable({
     data,
     columns,
-    coreRowModel: createCoreRowModel(),
+    features: {
+      coreRowModel: createCoreRowModel(),
+    },
   });
 
+  const rows = table.getRowModel().rows;
+
+  // Sort values are resolved through the column defs themselves, so sorting
+  // works for both `accessorFn` and `accessorKey` columns without touching the
+  // row-model internals.
+  const getSortValue = React.useCallback(
+    (rowOriginal, columnId) => {
+      const column = columns.find(
+        (column) => (column.id ?? column.accessorKey) === columnId,
+      );
+      if (!column) return "";
+
+      if (typeof column.accessorFn === "function") {
+        return column.accessorFn(rowOriginal, 0);
+      }
+
+      return column.accessorKey ? rowOriginal?.[column.accessorKey] : "";
+    },
+    [columns],
+  );
+
+  const sortedRows = React.useMemo(() => {
+    if (!sort) return rows;
+
+    const sorted = [...rows].sort((a, b) =>
+      compareValues(
+        getSortValue(a.original, sort.id),
+        getSortValue(b.original, sort.id),
+      ),
+    );
+
+    return sort.desc ? sorted.reverse() : sorted;
+  }, [rows, sort, getSortValue]);
+
+  // Server-driven mode: the caller owns paging, so rows are rendered as-is and
+  // the footer mirrors the server's own numbers.
+  const isServerPaginated = Boolean(serverPagination);
+  const serverPage = Math.max(1, Number(serverPagination?.page) || 1);
+  const serverTotalPages = Math.max(
+    1,
+    Number(serverPagination?.totalPages) || 1,
+  );
+  const serverTotalRows = Math.max(0, Number(serverPagination?.totalRows) || 0);
+  const serverPageSize =
+    Number(serverPagination?.pageSize) > 0
+      ? Number(serverPagination.pageSize)
+      : initialPageSize;
+  const isBusy = isLoading || Boolean(serverPagination?.isLoading);
+
+  const localTotalRows = sortedRows.length;
+  const localTotalPages = Math.max(1, Math.ceil(localTotalRows / pageSize));
+  const safePageIndex = Math.min(Math.max(0, pageIndex), localTotalPages - 1);
+  const pageRows = isServerPaginated
+    ? sortedRows
+    : enablePagination
+      ? sortedRows.slice(
+          safePageIndex * pageSize,
+          safePageIndex * pageSize + pageSize,
+        )
+      : sortedRows;
+
+  const totalRows = isServerPaginated ? serverTotalRows : localTotalRows;
+  const totalPages = isServerPaginated ? serverTotalPages : localTotalPages;
+  const activePage = isServerPaginated ? serverPage : safePageIndex + 1;
+  const activePageSize = isServerPaginated ? serverPageSize : pageSize;
+
+  // `lastRow` counts the rows actually rendered on this page, so a narrowed
+  // page never claims more rows than the user can see.
+  const firstRow =
+    totalRows === 0
+      ? 0
+      : (activePage - 1) * activePageSize + 1;
+  const lastRow = isServerPaginated
+    ? Math.min(totalRows, (serverPage - 1) * serverPageSize + sortedRows.length)
+    : Math.min(totalRows, (safePageIndex + 1) * pageSize);
+  const showFooter = (isServerPaginated || enablePagination) && totalRows > 0;
+
+  const toggleSort = (columnId) => {
+    setSort((prev) => {
+      if (prev?.id !== columnId) return { id: columnId, desc: false };
+      if (!prev.desc) return { id: columnId, desc: true };
+      return null;
+    });
+  };
+
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", className)}>
       <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <Table>
+        <Table className={tableClassName}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
+                  const columnDef = header.column.columnDef;
+                  const columnId = header.column.id;
+                  const canSort =
+                    enableSorting &&
+                    Boolean(columnDef.accessorFn || columnDef.accessorKey);
+                  const SortIcon =
+                    sort?.id === columnId
+                      ? sort.desc
+                        ? ArrowDown
+                        : ArrowUp
+                      : ArrowUpDown;
+
                   return (
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : canSort
+                          ? (
+                            <button
+                              type="button"
+                              onClick={() => toggleSort(columnId)}
+                              className="flex items-center gap-1.5 transition-colors hover:text-foreground"
+                            >
+                              {flexRender(
+                                columnDef.header,
+                                header.getContext(),
+                              )}
+                              <SortIcon className="size-3.5" />
+                            </button>
+                          )
+                          : flexRender(
+                              columnDef.header,
+                              header.getContext(),
+                            )}
                     </TableHead>
                   );
                 })}
@@ -51,8 +209,8 @@ export function DataTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+            {pageRows.length ? (
+              pageRows.map((row) => (
                 <TableRow
                   key={row.id}
                   className={onRowClick ? "cursor-pointer" : undefined}
@@ -103,6 +261,58 @@ export function DataTable({
             )}
           </TableBody>
         </Table>
+
+        {showFooter ? (
+          <div className="flex flex-col gap-2 border-t border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {firstRow}–{lastRow} of {totalRows}
+              {isBusy ? " · loading…" : ""}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+              <ReusableSelect
+                // label="Rows per page"
+                value={String(activePageSize)}
+                options={pageSizeOptions.map((size) => ({
+                  label: String(size),
+                  value: String(size),
+                }))}
+                onChange={(value) => {
+                  const nextPageSize = Number(value) || initialPageSize;
+
+                  // Server mode: the caller refetches with the new per_page.
+                  if (isServerPaginated) {
+                    serverPagination?.onPageSizeChange?.(nextPageSize);
+                    return;
+                  }
+
+                  setPageSize(nextPageSize);
+                  setPageIndex(0);
+                }}
+                className="w-24"
+                withPortal
+                disabled={isBusy}
+              />
+
+              <Pagination
+                page={activePage}
+                totalPages={totalPages}
+                onChange={(page) => {
+                  // Server mode: ask the caller to fetch this page.
+                  if (isServerPaginated) {
+                    serverPagination?.onPageChange?.(page);
+                    return;
+                  }
+
+                  setPageIndex(page - 1);
+                }}
+                disabled={isBusy}
+                showSummary={false}
+                className="px-0 py-0"
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -19,7 +19,8 @@ const GeneralPhysicalExamination = ({
   nutritionToggleOptions,
   consciousnessToggleOptions,
   generalAppearanceToggleOptions,
-  skinAssessmentToggleOptions
+  skinAssessmentToggleOptions,
+  postureFindingsToggleOptions,
 }) => {
   return (
     // <section className="screening-card">
@@ -150,14 +151,7 @@ const GeneralPhysicalExamination = ({
             />
             <ToggleGroup
               label="Posture / Spine"
-              options={[
-                { value: "Normal", label: "Normal", tone: "good" },
-                {
-                  value: "Needs attention",
-                  label: "Needs attention",
-                  tone: "warn",
-                },
-              ]}
+              options={postureFindingsToggleOptions}
               value={data.postureSpine}
               onChange={(value) => onChange("postureSpine", value)}
               columns={2}

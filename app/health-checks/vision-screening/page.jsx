@@ -35,6 +35,7 @@ import {
   nearAcuityOptions,
   pupilOptions,
   refractiveErrorOptions,
+  severityTone,
   yesNoOptions,
 } from "./datas/vision-screening-data";
 import { Button } from "@/components/ui/button";
@@ -133,17 +134,6 @@ const emptyEye = {
   nearWith: "NA",
   remarks: "",
 };
-
-// Map a master-data severity string ("Normal"/"Mild"/"Moderate"/"High"/
-// "Severe"/"Critical") to a UI tone.
-function severityTone(severity) {
-  const s = String(severity ?? "").toLowerCase();
-  if (s.includes("critical") || s.includes("severe")) return "destructive";
-  if (s.includes("high") || s.includes("moderate")) return "warning";
-  if (s.includes("mild")) return "info";
-  if (s.includes("normal")) return "success";
-  return "muted";
-}
 
 export default function VisionScreeningPage() {
   const dispatch = useAppDispatch();
